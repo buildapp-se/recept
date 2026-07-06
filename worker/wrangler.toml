@@ -6,4 +6,4 @@ routes = [{ pattern = "recept-api.orgutveckling.se", custom_domain = true }]
 [[d1_databases]]
 binding = "DB"
 database_name = "recept"
-database_id = "FILL_AFTER_CREATE"
+database_id = "519f743c-9c5e-48c0-930b-c615ada71f0c"
