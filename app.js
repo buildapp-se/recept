@@ -3,6 +3,8 @@
 // ---------- rena funktioner (testas i test.js) ----------
 const CATS = ['grönt', 'kött', 'mejeri', 'skafferi', 'fryst', 'övrigt'];
 const CAT_LABELS = { 'grönt': 'Grönt', 'kött': 'Kött & chark', 'mejeri': 'Mejeri', 'skafferi': 'Skafferi', 'fryst': 'Fryst', 'övrigt': 'Övrigt' };
+const COURSES = ['forratt', 'huvudratt', 'efterratt', 'dryck', 'sas'];
+const COURSE_LABELS = { forratt: 'Förrätt', huvudratt: 'Huvudrätt', efterratt: 'Efterrätt', dryck: 'Drycker', sas: 'Såser & röror' };
 
 function keyOf(name) { return name.toLowerCase().trim(); }
 
@@ -113,6 +115,7 @@ function normalizeState(raw) {
       id,
       title,
       portions: typeof r.portions === 'number' && r.portions >= 1 ? Math.round(r.portions) : 4,
+      course: COURSES.includes(r.course) ? r.course : 'huvudratt',
       source: safeUrl(r.source),
       ingredients: r.ingredients.map(x => {
         if (!x || typeof x !== 'object' || typeof x.name !== 'string' || !x.name.trim()) throw new Error('En ingrediens i "' + title + '" saknar namn.');
@@ -163,6 +166,7 @@ function parseImport(text, takenIds) {
     id: slugify(d.title, takenIds),
     title: d.title.trim(),
     portions: typeof d.portions === 'number' && d.portions >= 1 ? Math.round(d.portions) : 4,
+    course: COURSES.includes(d.course) ? d.course : 'huvudratt',
     source: safeUrl(d.source),
     ingredients,
     steps: Array.isArray(d.steps) ? d.steps.filter(s => typeof s === 'string' && s.trim()).map(s => s.trim()) : [],
@@ -174,6 +178,7 @@ const AI_PROMPT = `Du får ett recept nedan. Gör om det till JSON enligt exakt 
 {
   "title": "Receptets namn",
   "portions": 4,
+  "course": "huvudratt",
   "source": "",
   "ingredients": [
     { "name": "gul lök", "amount": 220, "unit": "g", "count": 2, "countUnit": "st", "cat": "grönt" },
@@ -192,6 +197,7 @@ Regler:
 - Vatten och annat man inte köper i butiken: behåll mängden men sätt "skipList": true.
 - "cat" måste vara exakt en av: "grönt", "kött", "mejeri", "skafferi", "fryst", "övrigt".
 - "portions": antalet portioner receptet gäller. Framgår det inte, uppskatta.
+- "course" måste vara exakt en av: "forratt", "huvudratt", "efterratt", "dryck", "sas" (såser & röror). Gissa den som passar bäst, framgår det inte: "huvudratt".
 - Har receptet delar (t.ex. sås, garnering): sätt "group": "Sås" osv. på de ingrediensernas rader.
 - "steps": tillagningsstegen som en lista med strängar, ett steg per element. Saknas steg: tom lista.
 - Ingrediensnamn: gemener, korta och butiksvänliga ("gul lök", inte "finhackad stor gul lök"). Samma vara ska heta samma sak som i andra recept.
@@ -200,7 +206,7 @@ Regler:
 Recept:
 `;
 
-if (typeof module !== 'undefined') { module.exports = { CATS, aggregate, fmtNum, fmtItem, fmtIngredient, nutritionPerPortion, keyOf, slugify, safeUrl, normalizeState, makeBackup, parseImport }; }
+if (typeof module !== 'undefined') { module.exports = { CATS, COURSES, COURSE_LABELS, aggregate, fmtNum, fmtItem, fmtIngredient, nutritionPerPortion, keyOf, slugify, safeUrl, normalizeState, makeBackup, parseImport }; }
 
 // ---------- app ----------
 if (typeof document !== 'undefined') (async function () {
@@ -258,23 +264,29 @@ if (typeof document !== 'undefined') (async function () {
   function selFor(id) { return state.selections.find(s => s.id === id); }
   const previewPortions = {}; // portionsvisning på receptsidan innan receptet lagts i listan
 
+  function recipeCard(r) {
+    const sel = selFor(r.id);
+    const nutr = nutritionPerPortion(r, nutrients);
+    return `<article class="card">
+      <a class="card-title" href="#/recept/${esc(r.id)}">${esc(r.title)}</a>
+      <div class="card-meta">bas ${r.portions} port · ${r.ingredients.length} ingredienser${nutr.kcal ? ` · ${fmtNum(nutr.kcal)} kcal/port` : ''}</div>
+      <div class="card-row">
+        ${sel
+          ? `<div class="stepper"><button data-step="${esc(r.id)}|-1" aria-label="Färre portioner">−</button><span>${sel.portions} port</span><button data-step="${esc(r.id)}|1" aria-label="Fler portioner">+</button></div>
+             <button class="btn btn-ghost" data-unselect="${esc(r.id)}">Ta bort ur listan</button>`
+          : `<button class="btn" data-select="${esc(r.id)}">Lägg i listan</button>`}
+      </div>
+    </article>`;
+  }
+
   function viewCatalog() {
-    const cards = state.recipes.map(r => {
-      const sel = selFor(r.id);
-      const nutr = nutritionPerPortion(r, nutrients);
-      return `<article class="card">
-        <a class="card-title" href="#/recept/${esc(r.id)}">${esc(r.title)}</a>
-        <div class="card-meta">bas ${r.portions} port · ${r.ingredients.length} ingredienser${nutr.kcal ? ` · ${fmtNum(nutr.kcal)} kcal/port` : ''}</div>
-        <div class="card-row">
-          ${sel
-            ? `<div class="stepper"><button data-step="${esc(r.id)}|-1" aria-label="Färre portioner">−</button><span>${sel.portions} port</span><button data-step="${esc(r.id)}|1" aria-label="Fler portioner">+</button></div>
-               <button class="btn btn-ghost" data-unselect="${esc(r.id)}">Ta bort ur listan</button>`
-            : `<button class="btn" data-select="${esc(r.id)}">Lägg i listan</button>`}
-        </div>
-      </article>`;
-    }).join('');
+    const byCourse = {};
+    for (const r of state.recipes) (byCourse[r.course] = byCourse[r.course] || []).push(r);
+    const sections = COURSES.filter(c => byCourse[c]).map(c => `
+      <h2>${esc(COURSE_LABELS[c])}</h2>
+      <div class="cards">${byCourse[c].map(recipeCard).join('')}</div>`).join('');
     return `<div class="view-head"><h1>Mina recept</h1><span><a class="btn btn-ghost" href="#/nytt">+ Nytt recept</a> <a class="btn btn-ghost" href="#/importera">Klistra in från AI</a></span></div>
-      ${state.recipes.length ? `<div class="cards">${cards}</div>` : '<p class="empty">Inga recept än. Lägg till ditt första med "Nytt recept".</p>'}`;
+      ${state.recipes.length ? sections : '<p class="empty">Inga recept än. Lägg till ditt första med "Nytt recept".</p>'}`;
   }
 
   function viewRecipe(id) {
@@ -294,6 +306,7 @@ if (typeof document !== 'undefined') (async function () {
     const nutr = nutritionPerPortion(r, nutrients);
     const nutrLine = `<p class="hint">${fmtNum(nutr.kcal)} kcal · ${fmtNum(nutr.protein)} g protein · ${fmtNum(nutr.carbs)} g kolhydrater · ${fmtNum(nutr.fat)} g fett per portion (källa: Livsmedelsverket)${nutr.missing.length ? ' · ofullständigt, ' + nutr.missing.length + ' ingrediens' + (nutr.missing.length > 1 ? 'er' : '') + ' saknar data' : ''}</p>`;
     return `<div class="view-head"><h1>${esc(r.title)}</h1><a class="btn btn-ghost" href="#/redigera/${esc(r.id)}">Redigera</a></div>
+      <p class="hint">${esc(COURSE_LABELS[r.course])}</p>
       <div class="portion-bar">
         <div class="stepper"><button data-rstep="-1" aria-label="Färre portioner">−</button><span>${portions} portioner</span><button data-rstep="1" aria-label="Fler portioner">+</button></div>
         ${sel ? `<button class="btn btn-ghost" data-unselect="${esc(id)}">Ta bort ur listan</button>` : `<button class="btn" data-select-p="${esc(id)}|${portions}">Lägg i listan</button>`}
@@ -388,6 +401,7 @@ if (typeof document !== 'undefined') (async function () {
       <form id="edForm" data-id="${r ? esc(r.id) : ''}">
         <label>Namn <input type="text" id="edTitle" value="${r ? esc(r.title) : ''}" maxlength="80" required></label>
         <label>Basportioner <input type="number" id="edPortions" value="${r ? r.portions : 4}" min="1" max="99" required></label>
+        <label>Kategori <select id="edCourse">${COURSES.map(c => `<option value="${c}"${(r ? r.course : 'huvudratt') === c ? ' selected' : ''}>${COURSE_LABELS[c]}</option>`).join('')}</select></label>
         <label>Källa (länk, valfritt) <input type="url" id="edSource" value="${r ? esc(r.source || '') : ''}"></label>
         <h2>Ingredienser</h2>
         <p class="hint">Mängd i gram eller ml så att listan kan räkna. Lämna mängden tom för "efter smak". Antal är ungefärligt styckantal (valfritt). Tumregler: 1 msk = 15 ml, 1 tsk = 5 ml, 1 dl = 100 ml.</p>
@@ -569,6 +583,7 @@ if (typeof document !== 'undefined') (async function () {
           id: oldId || slugify($('#edTitle').value, state.recipes.map(r => r.id)),
           title: $('#edTitle').value.trim(),
           portions: Number($('#edPortions').value),
+          course: $('#edCourse').value,
           source: safeUrl($('#edSource').value),
           ingredients,
           steps: $('#edSteps').value.split('\n').map(s => s.trim()).filter(Boolean),

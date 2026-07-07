@@ -3,6 +3,7 @@
     "id": "kottfarssas",
     "title": "Köttfärssås",
     "portions": 6,
+    "course": "huvudratt",
     "source": "",
     "ingredients": [
       { "name": "nötfärs", "amount": 800, "unit": "g", "cat": "kött" },
@@ -34,6 +35,7 @@
     "id": "kebab",
     "title": "Kebab i långpanna",
     "portions": 6,
+    "course": "huvudratt",
     "source": "https://zeinaskitchen.se/kafta-kottfarskebab-i-langpanna/",
     "ingredients": [
       { "name": "köttfärs", "amount": 1000, "unit": "g", "group": "Kebaben", "cat": "kött" },
@@ -62,6 +64,7 @@
     "id": "lovbiff-teriyaki",
     "title": "Lövbiff teriyaki med pak choi",
     "portions": 8,
+    "course": "huvudratt",
     "source": "https://www.ica.se/recept/lovbiff-teriyaki-med-pak-choi-och-lime-719793/",
     "ingredients": [
       { "name": "ris (gärna jasmin)", "amount": 500, "unit": "g", "cat": "skafferi" },
@@ -94,6 +97,7 @@
     "id": "veg-lasagne",
     "title": "Vegetarisk lasagne",
     "portions": 8,
+    "course": "huvudratt",
     "source": "https://undertian.com/recept/billig-vegetarisk-lasagne/",
     "ingredients": [
       { "name": "gul lök", "amount": 220, "unit": "g", "count": 2, "countUnit": "st", "group": "Lins- och tomatsås", "cat": "grönt" },
@@ -128,6 +132,7 @@
     "id": "broccolisoppa",
     "title": "Broccolisoppa",
     "portions": 6,
+    "course": "huvudratt",
     "source": "https://www.allrecipes.com/recipe/13313/best-cream-of-broccoli-soup/",
     "ingredients": [
       { "name": "smör", "amount": 55, "unit": "g", "cat": "mejeri" },
@@ -151,6 +156,7 @@
     "id": "loomisar",
     "title": "Haloumipasta",
     "portions": 6,
+    "course": "huvudratt",
     "source": "",
     "ingredients": [
       { "name": "halloumi", "amount": 200, "unit": "g", "count": 1, "countUnit": "pkt", "cat": "mejeri" },
@@ -167,6 +173,291 @@
       "Stek lök, vitlök och sedan tomater.",
       "Blanda ihop med rödpesto och låt puttra ett tag.",
       "Rör ihop med pasta och servera."
+    ]
+  },
+  {
+    "id": "markus-salsiccia-fankal",
+    "title": "Markus färsk salsiccia med fänkål",
+    "portions": 2,
+    "course": "huvudratt",
+    "source": "https://youtu.be/9T5Uh4wKa0Q",
+    "ingredients": [
+      { "name": "färsk salsiccia", "amount": 320, "unit": "g", "count": 1, "countUnit": "pkt", "cat": "kött" },
+      { "name": "röd chili", "amount": 15, "unit": "g", "count": 1, "countUnit": "st", "cat": "grönt" },
+      { "name": "gul lök", "amount": 55, "unit": "g", "count": 0.5, "countUnit": "st", "cat": "grönt" },
+      { "name": "vitlök", "amount": 5, "unit": "g", "count": 1, "countUnit": "klyfta", "cat": "grönt" },
+      { "name": "tomat", "amount": 240, "unit": "g", "count": 2, "countUnit": "st", "cat": "grönt" },
+      { "name": "olivolja", "toTaste": true, "cat": "skafferi" },
+      { "name": "torrt vitt vin", "amount": 100, "unit": "ml", "cat": "övrigt" },
+      { "name": "fänkålsfrön", "amount": 8, "unit": "g", "cat": "skafferi" },
+      { "name": "salt", "toTaste": true, "cat": "skafferi" },
+      { "name": "svartpeppar", "toTaste": true, "cat": "skafferi" },
+      { "name": "persilja", "toTaste": true, "cat": "grönt" },
+      { "name": "pecorinoost (till servering)", "toTaste": true, "cat": "mejeri" }
+    ],
+    "steps": [
+
+    ]
+  },
+  {
+    "id": "marockansk-kyckling",
+    "title": "Marockansk kyckling med sötpotatismos",
+    "portions": 4,
+    "course": "huvudratt",
+    "source": "https://www.bbcgoodfood.com/recipes/moroccan-chicken-sweet-potato-mash",
+    "ingredients": [
+      { "name": "sötpotatis", "amount": 1000, "unit": "g", "cat": "grönt" },
+      { "name": "ras el hanout (eller kanel och spiskummin)", "amount": 10, "unit": "g", "cat": "skafferi" },
+      { "name": "kycklingfilé", "amount": 600, "unit": "g", "count": 4, "countUnit": "st", "cat": "kött" },
+      { "name": "olivolja", "amount": 30, "unit": "ml", "cat": "skafferi" },
+      { "name": "gul lök", "amount": 110, "unit": "g", "count": 1, "countUnit": "st", "cat": "grönt" },
+      { "name": "vitlök", "amount": 5, "unit": "g", "count": 1, "countUnit": "klyfta", "cat": "grönt" },
+      { "name": "kycklingbuljong", "amount": 200, "unit": "ml", "cat": "skafferi" },
+      { "name": "honung", "amount": 10, "unit": "ml", "cat": "skafferi" },
+      { "name": "citron", "amount": 50, "unit": "g", "count": 0.5, "countUnit": "st", "cat": "grönt" },
+      { "name": "gröna oliver", "amount": 50, "unit": "g", "cat": "skafferi" },
+      { "name": "koriander", "amount": 20, "unit": "g", "cat": "grönt" }
+    ],
+    "steps": [
+      "Koka sötpotatisen i saltat vatten i 15 minuter eller tills mör. Blanda ras el hanout med salt och peppar och gnid in på kycklingen. Bryn kycklingen i olja i en stekpanna, ca 3 minuter per sida, tills gyllene.",
+      "Lyft ur kycklingen. Fräs lök och vitlök i 5 minuter tills mjuka. Tillsätt buljong, honung, citronjuice och oliver, lägg tillbaka kycklingen och låt sjuda 10 minuter tills såsen tjocknat och kycklingen är genomstekt.",
+      "Mosa sötpotatisen med lite olja, salta och peppra. Skiva kycklingen och rör ner koriandern i såsen. Servera kycklingen och såsen på moset."
+    ]
+  },
+  {
+    "id": "rakpasta",
+    "title": "Räkpasta med chili och vitlök",
+    "portions": 4,
+    "course": "huvudratt",
+    "source": "https://mittkok.expressen.se/recept/spaghetti-med-rakor-chili-och-vitlok/",
+    "ingredients": [
+      { "name": "spagetti", "amount": 400, "unit": "g", "cat": "skafferi" },
+      { "name": "räkor (skalade)", "amount": 300, "unit": "g", "cat": "kött" },
+      { "name": "olivolja", "amount": 100, "unit": "ml", "cat": "skafferi" },
+      { "name": "vitlök", "amount": 15, "unit": "g", "count": 3, "countUnit": "klyftor", "cat": "grönt" },
+      { "name": "röd chili", "amount": 15, "unit": "g", "count": 1, "countUnit": "st", "cat": "grönt" },
+      { "name": "miniplommontomater", "amount": 200, "unit": "g", "cat": "grönt" },
+      { "name": "salt", "amount": 3, "unit": "g", "cat": "skafferi" },
+      { "name": "svartpeppar", "toTaste": true, "cat": "skafferi" },
+      { "name": "citron", "amount": 33, "unit": "g", "count": 0.5, "countUnit": "st", "cat": "grönt" },
+      { "name": "rucolasallad", "amount": 70, "unit": "g", "cat": "grönt" },
+      { "name": "parmesanost", "amount": 100, "unit": "g", "cat": "mejeri" }
+    ],
+    "steps": [
+
+    ]
+  },
+  {
+    "id": "chili-con-carne",
+    "title": "Chili con carne",
+    "portions": 4,
+    "course": "huvudratt",
+    "source": "",
+    "ingredients": [
+      { "name": "nötfärs", "amount": 500, "unit": "g", "cat": "kött" },
+      { "name": "gul lök", "amount": 220, "unit": "g", "count": 2, "countUnit": "st", "cat": "grönt" },
+      { "name": "vitlök", "amount": 10, "unit": "g", "count": 2, "countUnit": "klyftor", "cat": "grönt" },
+      { "name": "röd chili", "amount": 15, "unit": "g", "count": 1, "countUnit": "st", "cat": "grönt" },
+      { "name": "grön paprika", "amount": 150, "unit": "g", "count": 1, "countUnit": "st", "cat": "grönt" },
+      { "name": "tomatpuré", "amount": 30, "unit": "ml", "cat": "skafferi" },
+      { "name": "hela tomater (burk)", "amount": 400, "unit": "g", "count": 1, "countUnit": "burk", "cat": "skafferi" },
+      { "name": "vatten", "amount": 400, "unit": "ml", "skipList": true, "cat": "övrigt" },
+      { "name": "kidneybönor (avrunna)", "amount": 480, "unit": "g", "count": 1, "countUnit": "pkt", "cat": "skafferi" },
+      { "name": "torkad timjan", "amount": 2, "unit": "g", "cat": "skafferi" },
+      { "name": "torkad oregano", "amount": 3, "unit": "g", "cat": "skafferi" },
+      { "name": "malen spiskummin", "amount": 4, "unit": "g", "cat": "skafferi" },
+      { "name": "rökt paprikapulver", "amount": 2, "unit": "g", "cat": "skafferi" },
+      { "name": "kakao", "amount": 5, "unit": "g", "cat": "skafferi" },
+      { "name": "bbq-sås", "amount": 30, "unit": "ml", "cat": "skafferi" },
+      { "name": "salt", "toTaste": true, "cat": "skafferi" },
+      { "name": "svartpeppar", "toTaste": true, "cat": "skafferi" },
+      { "name": "koriander", "amount": 20, "unit": "g", "count": 1, "countUnit": "kruka", "cat": "grönt" },
+      { "name": "olivolja", "toTaste": true, "cat": "skafferi" },
+      { "name": "ris (till servering)", "toTaste": true, "cat": "skafferi" }
+    ],
+    "steps": [
+
+    ]
+  },
+  {
+    "id": "kycklingsallad-tex-mex",
+    "title": "Kycklingsallad tex mex",
+    "portions": 4,
+    "course": "huvudratt",
+    "source": "https://www.tasteline.com/recept/texmexsallad-med-kyckling/",
+    "ingredients": [
+      { "name": "kyckling", "amount": 800, "unit": "g", "cat": "kött" },
+      { "name": "smör", "amount": 30, "unit": "g", "cat": "mejeri" },
+      { "name": "salt", "toTaste": true, "cat": "skafferi" },
+      { "name": "texmexkrydda", "amount": 12, "unit": "g", "cat": "skafferi" },
+      { "name": "röd paprika", "amount": 300, "unit": "g", "count": 2, "countUnit": "st", "cat": "grönt" },
+      { "name": "avokado", "amount": 600, "unit": "g", "count": 4, "countUnit": "st", "cat": "grönt" },
+      { "name": "tomat", "amount": 480, "unit": "g", "count": 4, "countUnit": "st", "cat": "grönt" },
+      { "name": "rödlök", "amount": 160, "unit": "g", "count": 2, "countUnit": "st", "cat": "grönt" },
+      { "name": "majs (fryst, tinad)", "amount": 170, "unit": "g", "cat": "fryst" },
+      { "name": "svarta bönor (kokta)", "amount": 340, "unit": "g", "cat": "skafferi" },
+      { "name": "blandad sallad", "amount": 200, "unit": "g", "count": 2, "countUnit": "påse", "cat": "grönt" },
+      { "name": "salsa (texmex)", "amount": 300, "unit": "ml", "cat": "skafferi" },
+      { "name": "gräddfil", "amount": 200, "unit": "ml", "cat": "mejeri" },
+      { "name": "svartpeppar", "toTaste": true, "cat": "skafferi" }
+    ],
+    "steps": [
+      "Skär kycklingen i små bitar, stek i smör. Salta och peppra och krydda med texmexblandning, rör runt och lägg sedan i en skål. Låt svalna lite.",
+      "Skär paprika, avokado och tomat i bitar.",
+      "Finhacka löken. Lägg allt i skålen med kyckling. Skölj bönorna och tillsätt dessa. Tillsätt sallad och majs. Blanda runt och servera med salsa och gräddfil."
+    ]
+  },
+  {
+    "id": "teriyaki-biff",
+    "title": "Teriyaki biff",
+    "portions": 8,
+    "course": "huvudratt",
+    "source": "https://www.kokaihop.se/recept/biff-teriyaki",
+    "ingredients": [
+      { "name": "lövbiff", "amount": 800, "unit": "g", "cat": "kött" },
+      { "name": "morot", "amount": 480, "unit": "g", "count": 4, "countUnit": "st", "cat": "grönt" },
+      { "name": "gul lök", "amount": 220, "unit": "g", "count": 2, "countUnit": "st", "cat": "grönt" },
+      { "name": "broccoli", "amount": 800, "unit": "g", "count": 2, "countUnit": "huvuden", "cat": "grönt" },
+      { "name": "olja", "amount": 30, "unit": "ml", "cat": "skafferi" },
+      { "name": "salt", "toTaste": true, "cat": "skafferi" },
+      { "name": "teriyakisås", "amount": 200, "unit": "ml", "cat": "skafferi" },
+      { "name": "kinesisk soja", "amount": 60, "unit": "ml", "cat": "skafferi" },
+      { "name": "sambal oelek", "amount": 10, "unit": "ml", "cat": "skafferi" },
+      { "name": "grädde (kokbar)", "amount": 500, "unit": "ml", "cat": "mejeri" }
+    ],
+    "steps": [
+      "Skala och skiva löken.",
+      "Skala morötterna och skär tunna skivor på snedden.",
+      "Dela broccolin i små bitar.",
+      "Fräs köttet lite i taget i stor stekpanna eller wokpanna.",
+      "Ta upp allt köttet och fräs grönsakerna under omrörning tills de börjar mjukna.",
+      "Lägg tillbaka köttet och salta, men inte för mycket.",
+      "Tillsätt teriyakisåsen, sojan, sambal oelek och grädden och låt småkoka några minuter."
+    ]
+  },
+  {
+    "id": "gazpacho",
+    "title": "Gazpacho",
+    "portions": 4,
+    "course": "forratt",
+    "source": "https://youtu.be/OZkE_d2CwBw",
+    "ingredients": [
+      { "name": "gurka", "amount": 400, "unit": "g", "count": 1, "countUnit": "st", "cat": "grönt" },
+      { "name": "plommontomater", "amount": 490, "unit": "g", "count": 7, "countUnit": "st", "cat": "grönt" },
+      { "name": "röd paprika", "amount": 150, "unit": "g", "count": 1, "countUnit": "st", "cat": "grönt" },
+      { "name": "grön paprika", "amount": 150, "unit": "g", "count": 1, "countUnit": "st", "cat": "grönt" },
+      { "name": "silverlök", "amount": 20, "unit": "g", "cat": "grönt" },
+      { "name": "vitlök", "amount": 2.5, "unit": "g", "count": 0.5, "countUnit": "klyfta", "cat": "grönt" },
+      { "name": "olivolja", "amount": 60, "unit": "ml", "cat": "skafferi" },
+      { "name": "sherryvinäger", "amount": 20, "unit": "ml", "cat": "skafferi" },
+      { "name": "salt", "toTaste": true, "cat": "skafferi" },
+      { "name": "strösocker", "toTaste": true, "cat": "skafferi" },
+      { "name": "svartpeppar", "toTaste": true, "cat": "skafferi" },
+      { "name": "vitt bröd (till krutonger)", "toTaste": true, "cat": "skafferi" }
+    ],
+    "steps": [
+
+    ]
+  },
+  {
+    "id": "sommarsmorgastarta",
+    "title": "Sommarsmörgåstårta",
+    "portions": 8,
+    "course": "huvudratt",
+    "source": "https://www.niiinis.se/2020/06/19/sommarsmorgastarta-med-farskpotatis/",
+    "ingredients": [
+      { "name": "jubileumskaka (runt rågbröd)", "amount": 1200, "unit": "g", "count": 2, "countUnit": "st", "cat": "skafferi" },
+      { "name": "crème fraiche", "amount": 500, "unit": "ml", "cat": "mejeri" },
+      { "name": "färskost", "amount": 300, "unit": "g", "cat": "mejeri" },
+      { "name": "rödlök", "amount": 110, "unit": "g", "count": 1, "countUnit": "st", "cat": "grönt" },
+      { "name": "dill", "amount": 25, "unit": "g", "count": 1, "countUnit": "bunt", "cat": "grönt" },
+      { "name": "cayennepeppar", "amount": 2, "unit": "g", "cat": "skafferi" },
+      { "name": "honung", "amount": 30, "unit": "ml", "cat": "skafferi" },
+      { "name": "salt", "toTaste": true, "cat": "skafferi" },
+      { "name": "svartpeppar", "toTaste": true, "cat": "skafferi" },
+      { "name": "ägg", "amount": 180, "unit": "g", "count": 3, "countUnit": "st", "cat": "mejeri" },
+      { "name": "handskalade räkor", "amount": 200, "unit": "g", "cat": "kött" },
+      { "name": "färskpotatis", "amount": 400, "unit": "g", "count": 4, "countUnit": "st", "cat": "grönt" },
+      { "name": "handskalade räkor", "amount": 300, "unit": "g", "group": "Garnering", "cat": "kött" },
+      { "name": "ägg", "amount": 180, "unit": "g", "count": 3, "countUnit": "st", "group": "Garnering", "cat": "mejeri" },
+      { "name": "färskpotatis", "amount": 400, "unit": "g", "count": 4, "countUnit": "st", "group": "Garnering", "cat": "grönt" },
+      { "name": "salladslök", "amount": 15, "unit": "g", "count": 0.5, "countUnit": "st", "group": "Garnering", "cat": "grönt" }
+    ],
+    "steps": [
+      "Koka potatisen (till både fyllning och garnering), låt sedan svalna.",
+      "Vispa crème fraiche fluffig och blanda med färskost, hackad rödlök, hackad dill, cayennepeppar och honung. Salta och peppra.",
+      "Lägg ut ett bröd på ett stort fat. Bred ut hälften av fyllningen. Skiva färskpotatis och lägg på, dela äggen i klyftor och lägg på dem också. Toppa med lite räkor.",
+      "Lägg på det andra brödet. Bred ut resten av fyllningen och toppa snyggt med garneringens räkor, ägg, potatis och salladslök. Låt stå kallt någon timme innan servering."
+    ]
+  },
+  {
+    "id": "grillsasen",
+    "title": "Grillsåsen",
+    "portions": 6,
+    "course": "sas",
+    "source": "",
+    "ingredients": [
+      { "name": "crème fraiche", "amount": 300, "unit": "g", "count": 1, "countUnit": "burk", "cat": "mejeri" },
+      { "name": "mango chutney", "amount": 38, "unit": "ml", "cat": "skafferi" },
+      { "name": "vitlök", "amount": 5, "unit": "g", "count": 1, "countUnit": "klyfta", "cat": "grönt" },
+      { "name": "ingefära (malen)", "amount": 1, "unit": "g", "cat": "skafferi" },
+      { "name": "curry", "amount": 1, "unit": "g", "cat": "skafferi" },
+      { "name": "cayennepeppar", "toTaste": true, "cat": "skafferi" },
+      { "name": "rödlök", "amount": 40, "unit": "g", "count": 1, "countUnit": "st", "cat": "grönt" }
+    ],
+    "steps": [
+      "Blanda crème fraiche, mango chutney, pressad vitlök, ingefära, curry, cayennepeppar och finhackad rödlök.",
+      "Smaka av och låt gärna stå kallt en stund innan servering."
+    ]
+  },
+  {
+    "id": "pasta-kraftstjartar",
+    "title": "Pastasås med kräftstjärtar",
+    "portions": 3,
+    "course": "huvudratt",
+    "source": "https://www.recepten.se/recept/pasta_kraeftstjaertar.html",
+    "ingredients": [
+      { "name": "bandspagetti", "amount": 300, "unit": "g", "cat": "skafferi" },
+      { "name": "purjolök", "amount": 150, "unit": "g", "count": 1, "countUnit": "st", "cat": "grönt" },
+      { "name": "gul paprika", "amount": 150, "unit": "g", "count": 1, "countUnit": "st", "cat": "grönt" },
+      { "name": "champinjoner", "amount": 100, "unit": "g", "cat": "grönt" },
+      { "name": "smör (att steka i)", "toTaste": true, "cat": "mejeri" },
+      { "name": "crème fraiche", "amount": 200, "unit": "ml", "cat": "mejeri" },
+      { "name": "fiskfond", "amount": 15, "unit": "ml", "cat": "skafferi" },
+      { "name": "chilisås", "amount": 15, "unit": "ml", "cat": "skafferi" },
+      { "name": "kräftstjärtar (konserv, inkl. rom)", "amount": 175, "unit": "g", "count": 1, "countUnit": "burk", "cat": "kött" },
+      { "name": "dill", "amount": 15, "unit": "g", "cat": "grönt" }
+    ],
+    "steps": [
+      "Koka pastan enligt anvisningen på förpackningen, så att den blir klar samtidigt som såsen.",
+      "Finhacka purjolök och paprika. Skiva svampen om den används.",
+      "Smält smör i en stekpanna. Fräs purjolök, paprika och ev. svamp i 5-10 minuter tills svampens vätska kokat in.",
+      "Tillsätt crème fraiche, fiskfond, chilisås och kräftrom (avskilj från kräftstjärtarna). Rör om och låt sjuda några minuter, smaka av.",
+      "Tillsätt kräftstjärtarna och dillen sist. Rör försiktigt och värm 1-2 minuter, såsen ska inte koka. Servera genast med pastan."
+    ]
+  },
+  {
+    "id": "flaskfile",
+    "title": "Absolut bästa fläskfilén",
+    "portions": 4,
+    "course": "huvudratt",
+    "source": "https://matklubben.se/recept/absolut-baesta-flaeskfilen/",
+    "ingredients": [
+      { "name": "fläskfilé", "amount": 1200, "unit": "g", "count": 2, "countUnit": "st", "cat": "kött" },
+      { "name": "salt", "toTaste": true, "cat": "skafferi" },
+      { "name": "svartpeppar", "toTaste": true, "cat": "skafferi" },
+      { "name": "mascarpone", "amount": 250, "unit": "g", "count": 1, "countUnit": "burk", "cat": "mejeri" },
+      { "name": "grönsaksbuljongtärning", "amount": 22, "unit": "g", "count": 2, "countUnit": "st", "cat": "skafferi" },
+      { "name": "crème fraiche", "amount": 200, "unit": "ml", "cat": "mejeri" },
+      { "name": "vispgrädde", "amount": 300, "unit": "ml", "cat": "mejeri" },
+      { "name": "sambal oelek", "amount": 5, "unit": "ml", "cat": "skafferi" },
+      { "name": "mango chutney", "amount": 100, "unit": "ml", "cat": "skafferi" },
+      { "name": "röd paprika", "amount": 180, "unit": "g", "count": 1, "countUnit": "st", "cat": "grönt" }
+    ],
+    "steps": [
+      "Dela varje filé på längden, dela sedan längderna i 3-4 bitar. Salta och peppra, bryn i en stekpanna tills de fått fin färg. Lägg över i en ugnsform.",
+      "Vispa ihop mascarpone, grädde, crème fraiche, sambal oelek, mango chutney och buljongtärningar, värm blandningen. Skär paprikan i mindre bitar och blanda ner i såsen. Låt sjuda kort, häll sedan över köttet.",
+      "Grädda mitt i ugnen på 200 grader i ca 45 minuter. Klart att servera!"
     ]
   }
 ]

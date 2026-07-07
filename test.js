@@ -1,7 +1,7 @@
 // ponytail: minsta möjliga check av summering/skalning - körs med: node test.js
 const assert = require('assert');
 const fs = require('fs');
-const { aggregate, fmtNum, fmtItem, parseImport, normalizeState, makeBackup, safeUrl, nutritionPerPortion } = require('./app.js');
+const { aggregate, fmtNum, fmtItem, parseImport, normalizeState, makeBackup, safeUrl, nutritionPerPortion, COURSES } = require('./app.js');
 
 const recipes = JSON.parse(fs.readFileSync(__dirname + '/starter.json', 'utf8'));
 
@@ -39,6 +39,7 @@ assert.strictEqual(imp.ingredients[1].cat, 'övrigt', 'okänd kategori faller ti
 assert.strictEqual(imp.ingredients[1].toTaste, true);
 assert.strictEqual(imp.ingredients[2].skipList, true);
 assert.strictEqual(imp.steps.length, 1, 'tomma steg filtreras');
+assert.strictEqual(imp.course, 'huvudratt', 'saknad/okänd course faller tillbaka till huvudratt');
 assert.throws(() => parseImport('inget json här', []), /Hittar ingen JSON/);
 assert.throws(() => parseImport('{"portions":4}', []), /title/);
 
@@ -60,6 +61,8 @@ const backup = makeBackup({
 const restored = normalizeState(backup);
 assert.strictEqual(restored.recipes.length, 1, 'backup wrapper läses');
 assert.strictEqual(restored.recipes[0].source, '', 'osäker källa följer inte med backup');
+assert.strictEqual(restored.recipes[0].course, 'huvudratt', 'saknad course i backup faller tillbaka till huvudratt');
+assert.ok(COURSES.includes('sas'), 'såser & röror finns som course');
 assert.strictEqual(restored.selections.length, 1, 'val utan recept filtreras');
 assert.strictEqual(normalizeState(restored).extras[0].text, 'mjölk', 'rå state kan också återställas');
 
