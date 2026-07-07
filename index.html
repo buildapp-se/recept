@@ -31,7 +31,7 @@ a{color:inherit}
 button{font:inherit;cursor:pointer}
 .wrap{max-width:640px;margin:0 auto;padding:1.25rem 1.25rem 6rem}
 header.brand{padding:1.5rem 0 .5rem}
-.wordmark{font-family:var(--font-display);font-weight:800;font-size:clamp(1.9rem,7vw,2.6rem);line-height:1.02;letter-spacing:-.03em}
+.wordmark{font-family:var(--font-display);font-weight:800;font-size:clamp(1.9rem,7vw,2.6rem);line-height:1.02;letter-spacing:-.03em;display:inline-block;color:var(--ink);text-decoration:none}
 .wordmark em{font-style:normal;color:var(--lingon)}
 .tagline{font-family:var(--font-mono);font-size:.72rem;color:var(--ink2);letter-spacing:.08em;text-transform:uppercase;margin-top:.35rem}
 .nav{position:fixed;bottom:0;left:0;right:0;background:var(--ink);display:flex;justify-content:center;gap:0;z-index:10;padding-bottom:env(safe-area-inset-bottom)}
@@ -121,7 +121,7 @@ textarea{width:100%}
 <body>
 <div class="wrap">
   <header class="brand">
-    <div class="wordmark">gram<em>mat</em>.</div>
+    <a class="wordmark" href="#/">gram<em>mat</em>.</a>
     <div class="tagline">recept &amp; inköpslista · allt i gram</div>
     <nav class="nav" aria-label="Huvudmeny">
       <a href="#/" data-match="#/">Mina recept</a>
