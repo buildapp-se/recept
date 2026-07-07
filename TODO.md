@@ -9,7 +9,6 @@ Byggt och live 2026-07-07: sajt, worker, D1, konton, kvittolista, 6 startrecept,
 - [ ] Karls loomisar saknar steg ("Inga steg nedskrivna") — fråga Karl.
 - [ ] Ev. PWA-manifest så sajten kan läggas på hemskärmen och funka offline i butiken.
 - [ ] Ev. "dela recept till kompis"-funktion (export/import av ett enskilt recept som JSON eller länk; hel backup finns redan under Konto).
-- [ ] Ev. PIN-reset utan att state går förlorat (admin-endpoint eller manuell D1-rutin, se PROJECT.md).
 
 ## Kända begränsningar (medvetna)
 - Sista skrivning vinner vid sync; ok eftersom varje lista har en ägare.

@@ -21,7 +21,8 @@ Repo: https://github.com/Elwyndaz/recept (GH Pages, branch `main`, root). Custom
 
 ## Kommandon
 - Deploy worker: `cd worker && npx wrangler deploy`
-- D1-konsol: `npx wrangler d1 execute recept --remote --command "..."` (PIN-reset: uppdatera pin_hash, enklast DELETE + låt personen registrera om; state går då förlorat, kopiera det först).
+- D1-konsol: `npx wrangler d1 execute recept --remote --command "..."`.
+- PIN-reset (behåller receptdata): räkna ut ny `salt:hash` lokalt med `node -e "const c=require('crypto');const salt=c.randomUUID();const h=c.createHash('sha256').update(salt+'NYPIN').digest('hex');console.log(salt+':'+h)"`, kör sedan `UPDATE users SET pin_hash='<salt:hash>' WHERE name='användarnamn'` mot D1. Token och state påverkas inte. Använd ENDAST DELETE + återregistrering om kontot är trasigt på annat sätt, det raderar all state om den inte kopierats ut först.
 - Agentbackup före riskabla ändringar/deploy: `New-Item -ItemType Directory -Force backups; npx wrangler d1 export recept --remote --output backups/recept-YYYY-MM-DD-HHMMSS.sql`. Ersätt timestamp med aktuell tid. Kontrollera att filen hamnar i `backups/`, inte i repo-roten.
 - D1 Time Travel restore: `npx wrangler d1 time-travel info recept --timestamp "YYYY-MM-DDTHH:MM:SSZ"` och `npx wrangler d1 time-travel restore recept --timestamp "YYYY-MM-DDTHH:MM:SSZ"`.
 - Frontend deployas genom push till `main` (GH Pages, ~30 s).

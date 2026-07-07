@@ -286,6 +286,23 @@ if (typeof document !== 'undefined') (async function () {
       <p><button class="btn btn-danger" data-delete="${esc(id)}">Ta bort receptet</button></p>`;
   }
 
+  function listAsText() {
+    const items = aggregate(state.recipes, state.selections);
+    const byCat = {};
+    for (const it of items) (byCat[it.cat] = byCat[it.cat] || []).push(it);
+    const lines = [];
+    for (const cat of CATS) {
+      if (!byCat[cat]) continue;
+      lines.push(CAT_LABELS[cat].toUpperCase());
+      for (const it of byCat[cat].sort((a, b) => a.name.localeCompare(b.name, 'sv'))) lines.push('- ' + it.name + ': ' + fmtItem(it));
+    }
+    if (state.extras.length) {
+      lines.push('EGNA RADER');
+      for (const ex of state.extras) lines.push('- ' + ex.text);
+    }
+    return lines.join('\n');
+  }
+
   function viewList() {
     const items = aggregate(state.recipes, state.selections);
     const byCat = {};
@@ -319,7 +336,7 @@ if (typeof document !== 'undefined') (async function () {
     const total = items.length + state.extras.length;
     const doneCount = state.checked.length;
     const recipesLine = state.selections.map(s => { const r = state.recipes.find(x => x.id === s.id); return r ? esc(r.title) + ' × ' + s.portions : ''; }).filter(Boolean).join('<br>');
-    return `<div class="view-head"><h1>Inköpslista</h1></div>
+    return `<div class="view-head"><h1>Att köpa</h1></div>
       ${total === 0 ? '<p class="empty">Listan är tom. Lägg recept i listan under Recept.</p>' : `
       <div class="kvitto">
         <div class="kvitto-head">GRAMMAT<br>${new Date().toLocaleDateString('sv-SE', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
@@ -331,7 +348,7 @@ if (typeof document !== 'undefined') (async function () {
         <input type="text" id="extraText" placeholder="Egen rad, t.ex. mjölk eller toapapper" maxlength="80" required>
         <button class="btn" type="submit">Lägg till</button>
       </form>
-      ${total > 0 ? '<p><button class="btn btn-danger" id="clearList">Töm listan</button></p>' : ''}`;
+      ${total > 0 ? '<p><button class="btn btn-ghost" id="copyList" type="button">Kopiera listan</button> <button class="btn btn-danger" id="clearList">Töm listan</button></p>' : ''}`;
   }
 
   function viewEditor(id) {
@@ -494,6 +511,12 @@ if (typeof document !== 'undefined') (async function () {
       e.preventDefault();
       state.extras.push({ id: Date.now(), text: $('#extraText').value.trim() });
       save();
+    };
+    const copyListBtn = $('#copyList');
+    if (copyListBtn) copyListBtn.onclick = async () => {
+      try { await navigator.clipboard.writeText(listAsText()); copyListBtn.textContent = 'Kopierad!'; }
+      catch (e) { copyListBtn.textContent = 'Kunde inte kopiera'; }
+      setTimeout(() => { copyListBtn.textContent = 'Kopiera listan'; }, 2500);
     };
     const clearBtn = $('#clearList');
     if (clearBtn) clearBtn.onclick = () => {

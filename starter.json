@@ -93,25 +93,25 @@
   {
     "id": "veg-lasagne",
     "title": "Vegetarisk lasagne",
-    "portions": 16,
+    "portions": 8,
     "source": "https://undertian.com/recept/billig-vegetarisk-lasagne/",
     "ingredients": [
-      { "name": "gul lök", "amount": 440, "unit": "g", "count": 4, "countUnit": "st", "group": "Lins- och tomatsås", "cat": "grönt" },
-      { "name": "röda linser (torkade)", "amount": 680, "unit": "g", "group": "Lins- och tomatsås", "cat": "skafferi" },
-      { "name": "krossade tomater", "amount": 1600, "unit": "g", "group": "Lins- och tomatsås", "cat": "skafferi" },
-      { "name": "vatten", "amount": 1200, "unit": "ml", "group": "Lins- och tomatsås", "skipList": true, "cat": "övrigt" },
-      { "name": "morot", "amount": 960, "unit": "g", "count": 8, "countUnit": "st", "group": "Lins- och tomatsås", "cat": "grönt" },
-      { "name": "grönsaksbuljongtärning", "amount": 44, "unit": "g", "count": 4, "countUnit": "st", "group": "Lins- och tomatsås", "cat": "skafferi" },
-      { "name": "tomatpuré", "amount": 60, "unit": "ml", "group": "Lins- och tomatsås", "cat": "skafferi" },
-      { "name": "vitlök", "amount": 20, "unit": "g", "count": 4, "countUnit": "klyftor", "group": "Lins- och tomatsås", "cat": "grönt" },
-      { "name": "torkade örter (basilika/oregano/timjan)", "amount": 12, "unit": "g", "group": "Lins- och tomatsås", "cat": "skafferi" },
+      { "name": "gul lök", "amount": 220, "unit": "g", "count": 2, "countUnit": "st", "group": "Lins- och tomatsås", "cat": "grönt" },
+      { "name": "röda linser (torkade)", "amount": 340, "unit": "g", "group": "Lins- och tomatsås", "cat": "skafferi" },
+      { "name": "krossade tomater", "amount": 800, "unit": "g", "group": "Lins- och tomatsås", "cat": "skafferi" },
+      { "name": "vatten", "amount": 600, "unit": "ml", "group": "Lins- och tomatsås", "skipList": true, "cat": "övrigt" },
+      { "name": "morot", "amount": 480, "unit": "g", "count": 4, "countUnit": "st", "group": "Lins- och tomatsås", "cat": "grönt" },
+      { "name": "grönsaksbuljongtärning", "amount": 22, "unit": "g", "count": 2, "countUnit": "st", "group": "Lins- och tomatsås", "cat": "skafferi" },
+      { "name": "tomatpuré", "amount": 30, "unit": "ml", "group": "Lins- och tomatsås", "cat": "skafferi" },
+      { "name": "vitlök", "amount": 10, "unit": "g", "count": 2, "countUnit": "klyftor", "group": "Lins- och tomatsås", "cat": "grönt" },
+      { "name": "torkade örter (basilika/oregano/timjan)", "amount": 6, "unit": "g", "group": "Lins- och tomatsås", "cat": "skafferi" },
       { "name": "salt", "toTaste": true, "group": "Lins- och tomatsås", "cat": "skafferi" },
       { "name": "svartpeppar", "toTaste": true, "group": "Lins- och tomatsås", "cat": "skafferi" },
       { "name": "olja att steka i", "toTaste": true, "group": "Lins- och tomatsås", "cat": "skafferi" },
-      { "name": "crème fraiche", "amount": 1000, "unit": "ml", "group": "Ostsås", "cat": "mejeri" },
-      { "name": "riven ost", "amount": 160, "unit": "g", "group": "Ostsås", "cat": "mejeri" },
-      { "name": "lasagneplattor", "amount": 1000, "unit": "g", "group": "Montering", "cat": "skafferi" },
-      { "name": "riven ost", "amount": 100, "unit": "g", "group": "Montering", "cat": "mejeri" }
+      { "name": "crème fraiche", "amount": 500, "unit": "ml", "group": "Ostsås", "cat": "mejeri" },
+      { "name": "riven ost", "amount": 80, "unit": "g", "group": "Ostsås", "cat": "mejeri" },
+      { "name": "lasagneplattor", "amount": 500, "unit": "g", "group": "Montering", "cat": "skafferi" },
+      { "name": "riven ost", "amount": 50, "unit": "g", "group": "Montering", "cat": "mejeri" }
     ],
     "steps": [
       "Hacka löken fint. Värm olja i en stor kastrull och stek löken tills den är blank.",
@@ -149,8 +149,8 @@
   },
   {
     "id": "loomisar",
-    "title": "Karls loomisar",
-    "portions": 2,
+    "title": "Haloumipasta",
+    "portions": 6,
     "source": "",
     "ingredients": [
       { "name": "halloumi", "amount": 200, "unit": "g", "count": 1, "countUnit": "pkt", "cat": "mejeri" },
@@ -158,8 +158,15 @@
       { "name": "svarta oliver (urkärnade)", "amount": 150, "unit": "g", "count": 1, "countUnit": "burk", "cat": "skafferi" },
       { "name": "tomat", "amount": 720, "unit": "g", "count": 6, "countUnit": "st", "cat": "grönt" },
       { "name": "rödlök", "amount": 100, "unit": "g", "count": 1, "countUnit": "st", "cat": "grönt" },
-      { "name": "vitlök", "toTaste": true, "cat": "grönt" }
+      { "name": "vitlök", "toTaste": true, "cat": "grönt" },
+      { "name": "pasta (till servering)", "amount": 480, "unit": "g", "cat": "skafferi" }
     ],
-    "steps": []
+    "steps": [
+      "Hacka lök, vitlök och tomater.",
+      "Skär halloumi i kuber, halvera oliver och stek tillsammans.",
+      "Stek lök, vitlök och sedan tomater.",
+      "Blanda ihop med rödpesto och låt puttra ett tag.",
+      "Rör ihop med pasta och servera."
+    ]
   }
 ]
