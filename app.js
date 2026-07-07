@@ -377,22 +377,24 @@ if (typeof document !== 'undefined') (async function () {
       : '<p class="empty">Inga steg nedskrivna.</p>';
     const nutr = nutritionPerPortion(r, nutrients);
     const nutrLine = `<p class="hint">Per portion: ${fmtNum(nutr.kcal)} kcal · ${fmtNum(nutr.protein)} g protein · ${fmtNum(nutr.carbs)} g kolhydrater · ${fmtNum(nutr.fat)} g fett${nutr.missing.length ? ' · ofullständigt, ' + nutr.missing.length + ' ingrediens' + (nutr.missing.length > 1 ? 'er' : '') + ' saknar data' : ''} (källa: <a href="https://soknaringsinnehall.livsmedelsverket.se/" rel="noopener">Livsmedelsverket</a> m.fl.)</p>`;
+    const stepper = mine ? `<div class="stepper"><button data-rstep="-1" aria-label="Färre portioner">−</button><span>${portions} portioner</span><button data-rstep="1" aria-label="Fler portioner">+</button></div>` : '';
     const actionBar = mine
-      ? `<div class="portion-bar">
-        <div class="stepper"><button data-rstep="-1" aria-label="Färre portioner">−</button><span>${portions} portioner</span><button data-rstep="1" aria-label="Fler portioner">+</button></div>
+      ? `<p class="action-row">
         ${sel ? `<button class="btn btn-ghost" data-unselect="${esc(id)}">Ta bort ur listan</button>` : `<button class="btn" data-select-p="${esc(id)}|${portions}">Lägg i listan</button>`}
-      </div>`
+        <button class="btn btn-ghost" data-duplicate="${esc(id)}">Kopiera receptet</button>
+        <button class="btn btn-danger" data-delete="${esc(id)}">Ta bort receptet</button>
+      </p>`
       : `<p class="action-row"><button class="btn" data-add-allas="${esc(id)}">Lägg till i mina recept</button></p>`;
     return `<div class="view-head"><h1>${esc(r.title)}</h1>${mine ? `<a class="btn btn-ghost" href="#/redigera/${esc(r.id)}">Redigera</a>` : ''}</div>
       <p class="hint">${esc(COURSE_LABELS[r.course])}</p>
-      ${actionBar}
+      ${stepper}
       ${nutrLine}
       <h2>Ingredienser</h2>
       <table class="ing-table"><tbody>${rows}</tbody></table>
       <h2>Gör så här</h2>
       ${steps}
       ${r.source ? `<p class="source"><a href="${esc(r.source)}" rel="noopener">Källa</a></p>` : ''}
-      ${mine ? `<p class="action-row"><button class="btn btn-ghost" data-duplicate="${esc(id)}">Kopiera receptet</button> <button class="btn btn-danger" data-delete="${esc(id)}">Ta bort receptet</button></p>` : ''}`;
+      ${actionBar}`;
   }
 
   function listAsText() {
@@ -621,7 +623,7 @@ if (typeof document !== 'undefined') (async function () {
     });
     view.querySelectorAll('[data-delete]').forEach(b => b.onclick = () => {
       const r = state.recipes.find(x => x.id === b.dataset.delete);
-      if (!confirm('Ta bort "' + r.title + '"? Det går inte att ångra.')) return;
+      if (!confirm('Ta bort "' + r.title + '"? Tas endast bort från dina recept, går inte att ångra.')) return;
       state.recipes = state.recipes.filter(x => x.id !== r.id);
       state.selections = state.selections.filter(s => s.id !== r.id);
       location.hash = '#/';
