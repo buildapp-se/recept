@@ -285,6 +285,8 @@ if (typeof document !== 'undefined') (async function () {
   // ---------- vyer ----------
   function selFor(id) { return state.selections.find(s => s.id === id); }
   const previewPortions = {}; // portionsvisning på receptsidan innan receptet lagts i listan
+  // recept kan visas/öppnas innan de finns i egna state.recipes (Allas recept-fliken)
+  function findRecipe(id) { return state.recipes.find(x => x.id === id) || starter.find(x => x.id === id) || (allasList || []).find(x => x.id === id); }
 
   let allasList = null; // null = ej hämtad än
   let allasLoading = false;
@@ -325,9 +327,8 @@ if (typeof document !== 'undefined') (async function () {
     function card(r) {
       const mine = myIds.has(r.id);
       const nutr = nutritionPerPortion(r, nutrients);
-      const title = mine ? `<a class="card-title" href="#/recept/${esc(r.id)}">${esc(r.title)}</a>` : `<span class="card-title">${esc(r.title)}</span>`;
       return `<article class="card">
-        ${title}
+        <a class="card-title" href="#/recept/${esc(r.id)}">${esc(r.title)}</a>
         <div class="card-meta">bas ${r.portions} port · ${r.ingredients.length} ingredienser${nutr.kcal ? ` · ${fmtNum(nutr.kcal)} kcal/port` : ''}${r._ownerLabel ? ' · ' + esc(r._ownerLabel) : ''}</div>
         <div class="card-row">
           ${mine ? '<span class="hint">Redan tillagd</span>' : `<button class="btn" data-add-allas="${esc(r.id)}">Lägg till i mina recept</button>`}
@@ -360,9 +361,10 @@ if (typeof document !== 'undefined') (async function () {
   }
 
   function viewRecipe(id) {
-    const r = state.recipes.find(x => x.id === id);
+    const r = findRecipe(id);
     if (!r) return '<p class="empty">Receptet finns inte.</p>';
-    const sel = selFor(id);
+    const mine = state.recipes.some(x => x.id === id);
+    const sel = mine ? selFor(id) : null;
     const portions = sel ? sel.portions : (previewPortions[id] || r.portions);
     const f = portions / r.portions;
     let rows = '', lastGroup = null;
@@ -375,19 +377,22 @@ if (typeof document !== 'undefined') (async function () {
       : '<p class="empty">Inga steg nedskrivna.</p>';
     const nutr = nutritionPerPortion(r, nutrients);
     const nutrLine = `<p class="hint">Per portion: ${fmtNum(nutr.kcal)} kcal · ${fmtNum(nutr.protein)} g protein · ${fmtNum(nutr.carbs)} g kolhydrater · ${fmtNum(nutr.fat)} g fett${nutr.missing.length ? ' · ofullständigt, ' + nutr.missing.length + ' ingrediens' + (nutr.missing.length > 1 ? 'er' : '') + ' saknar data' : ''} (källa: <a href="https://soknaringsinnehall.livsmedelsverket.se/" rel="noopener">Livsmedelsverket</a> m.fl.)</p>`;
-    return `<div class="view-head"><h1>${esc(r.title)}</h1><a class="btn btn-ghost" href="#/redigera/${esc(r.id)}">Redigera</a></div>
-      <p class="hint">${esc(COURSE_LABELS[r.course])}</p>
-      <div class="portion-bar">
+    const actionBar = mine
+      ? `<div class="portion-bar">
         <div class="stepper"><button data-rstep="-1" aria-label="Färre portioner">−</button><span>${portions} portioner</span><button data-rstep="1" aria-label="Fler portioner">+</button></div>
         ${sel ? `<button class="btn btn-ghost" data-unselect="${esc(id)}">Ta bort ur listan</button>` : `<button class="btn" data-select-p="${esc(id)}|${portions}">Lägg i listan</button>`}
-      </div>
+      </div>`
+      : `<p class="action-row"><button class="btn" data-add-allas="${esc(id)}">Lägg till i mina recept</button></p>`;
+    return `<div class="view-head"><h1>${esc(r.title)}</h1>${mine ? `<a class="btn btn-ghost" href="#/redigera/${esc(r.id)}">Redigera</a>` : ''}</div>
+      <p class="hint">${esc(COURSE_LABELS[r.course])}</p>
+      ${actionBar}
       ${nutrLine}
       <h2>Ingredienser</h2>
       <table class="ing-table"><tbody>${rows}</tbody></table>
       <h2>Gör så här</h2>
       ${steps}
       ${r.source ? `<p class="source"><a href="${esc(r.source)}" rel="noopener">Källa</a></p>` : ''}
-      <p class="action-row"><button class="btn btn-ghost" data-duplicate="${esc(id)}">Kopiera receptet</button> <button class="btn btn-danger" data-delete="${esc(id)}">Ta bort receptet</button></p>`;
+      ${mine ? `<p class="action-row"><button class="btn btn-ghost" data-duplicate="${esc(id)}">Kopiera receptet</button> <button class="btn btn-danger" data-delete="${esc(id)}">Ta bort receptet</button></p>` : ''}`;
   }
 
   function listAsText() {
