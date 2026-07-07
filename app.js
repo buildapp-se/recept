@@ -331,7 +331,7 @@ if (typeof document !== 'undefined') (async function () {
         <a class="card-title" href="#/recept/${esc(r.id)}">${esc(r.title)}</a>
         <div class="card-meta">bas ${r.portions} port · ${r.ingredients.length} ingredienser${nutr.kcal ? ` · ${fmtNum(nutr.kcal)} kcal/port` : ''}${r._ownerLabel ? ' · ' + esc(r._ownerLabel) : ''}</div>
         <div class="card-row">
-          ${mine ? '<span class="hint">Redan tillagd</span>' : `<button class="btn" data-add-allas="${esc(r.id)}">Lägg till i mina recept</button>`}
+          ${mine ? `<button class="btn btn-ghost" data-remove-allas="${esc(r.id)}">Ta bort ur mina recept</button>` : `<button class="btn" data-add-allas="${esc(r.id)}">Lägg till i mina recept</button>`}
         </div>
       </article>`;
     }
@@ -619,6 +619,12 @@ if (typeof document !== 'undefined') (async function () {
       delete copy.owner;
       if (state.recipes.some(x => x.id === copy.id)) copy.id = slugify(copy.title, state.recipes.map(x => x.id));
       state.recipes.push(copy);
+      save();
+    });
+    view.querySelectorAll('[data-remove-allas]').forEach(b => b.onclick = () => {
+      const id = b.dataset.removeAllas;
+      state.recipes = state.recipes.filter(x => x.id !== id);
+      state.selections = state.selections.filter(s => s.id !== id);
       save();
     });
     view.querySelectorAll('[data-delete]').forEach(b => b.onclick = () => {
