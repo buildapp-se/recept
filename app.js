@@ -62,6 +62,21 @@ function fmtIngredient(ing, f) {
   return s;
 }
 
+// Näringsvärde per portion, oberoende av hur många portioner man just nu lagar.
+// ponytail: ml behandlas som g (ingen densitetstabell), samma precisionsnivå som aggregate().
+function nutritionPerPortion(recipe, nutrients) {
+  const t = { kcal: 0, protein: 0, carbs: 0, fat: 0 };
+  const missing = [];
+  for (const ing of recipe.ingredients) {
+    if (ing.amount == null) continue; // efter smak: går inte att räkna
+    const n = nutrients[keyOf(ing.name)];
+    if (!n) { missing.push(ing.name); continue; }
+    const f = ing.amount / 100;
+    t.kcal += n.kcal * f; t.protein += n.protein * f; t.carbs += n.carbs * f; t.fat += n.fat * f;
+  }
+  return { kcal: t.kcal / recipe.portions, protein: t.protein / recipe.portions, carbs: t.carbs / recipe.portions, fat: t.fat / recipe.portions, missing };
+}
+
 function slugify(title, taken) {
   let base = title.toLowerCase().replace(/[åä]/g, 'a').replace(/ö/g, 'o').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'recept';
   let id = base, i = 2;
@@ -185,7 +200,7 @@ Regler:
 Recept:
 `;
 
-if (typeof module !== 'undefined') { module.exports = { CATS, aggregate, fmtNum, fmtItem, fmtIngredient, keyOf, slugify, safeUrl, normalizeState, makeBackup, parseImport }; }
+if (typeof module !== 'undefined') { module.exports = { CATS, aggregate, fmtNum, fmtItem, fmtIngredient, nutritionPerPortion, keyOf, slugify, safeUrl, normalizeState, makeBackup, parseImport }; }
 
 // ---------- app ----------
 if (typeof document !== 'undefined') (async function () {
@@ -196,7 +211,9 @@ if (typeof document !== 'undefined') (async function () {
   let auth = JSON.parse(localStorage.getItem('auth') || 'null');
   let state = JSON.parse(localStorage.getItem('state') || 'null');
   let starter = [];
+  let nutrients = {};
   try { starter = await (await fetch('starter.json')).json(); } catch (e) { /* offline utan cache */ }
+  try { nutrients = await (await fetch('nutrients.json')).json(); } catch (e) { /* offline utan cache */ }
   if (!state) state = { recipes: structuredClone(starter), selections: [], extras: [], checked: [] };
   try { state = normalizeState(state); } catch (e) { state = { recipes: structuredClone(starter), selections: [], extras: [], checked: [] }; }
 
@@ -244,9 +261,10 @@ if (typeof document !== 'undefined') (async function () {
   function viewCatalog() {
     const cards = state.recipes.map(r => {
       const sel = selFor(r.id);
+      const nutr = nutritionPerPortion(r, nutrients);
       return `<article class="card">
         <a class="card-title" href="#/recept/${esc(r.id)}">${esc(r.title)}</a>
-        <div class="card-meta">bas ${r.portions} port · ${r.ingredients.length} ingredienser</div>
+        <div class="card-meta">bas ${r.portions} port · ${r.ingredients.length} ingredienser${nutr.kcal ? ` · ${fmtNum(nutr.kcal)} kcal/port` : ''}</div>
         <div class="card-row">
           ${sel
             ? `<div class="stepper"><button data-step="${esc(r.id)}|-1" aria-label="Färre portioner">−</button><span>${sel.portions} port</span><button data-step="${esc(r.id)}|1" aria-label="Fler portioner">+</button></div>
@@ -273,11 +291,14 @@ if (typeof document !== 'undefined') (async function () {
     const steps = r.steps.length
       ? '<ol class="steps">' + r.steps.map(s => `<li>${esc(s)}</li>`).join('') + '</ol>'
       : '<p class="empty">Inga steg nedskrivna.</p>';
+    const nutr = nutritionPerPortion(r, nutrients);
+    const nutrLine = `<p class="hint">${fmtNum(nutr.kcal)} kcal · ${fmtNum(nutr.protein)} g protein · ${fmtNum(nutr.carbs)} g kolhydrater · ${fmtNum(nutr.fat)} g fett per portion (källa: Livsmedelsverket)${nutr.missing.length ? ' · ofullständigt, ' + nutr.missing.length + ' ingrediens' + (nutr.missing.length > 1 ? 'er' : '') + ' saknar data' : ''}</p>`;
     return `<div class="view-head"><h1>${esc(r.title)}</h1><a class="btn btn-ghost" href="#/redigera/${esc(r.id)}">Redigera</a></div>
       <div class="portion-bar">
         <div class="stepper"><button data-rstep="-1" aria-label="Färre portioner">−</button><span>${portions} portioner</span><button data-rstep="1" aria-label="Fler portioner">+</button></div>
         ${sel ? `<button class="btn btn-ghost" data-unselect="${esc(id)}">Ta bort ur listan</button>` : `<button class="btn" data-select-p="${esc(id)}|${portions}">Lägg i listan</button>`}
       </div>
+      ${nutrLine}
       <h2>Ingredienser</h2>
       <table class="ing-table"><tbody>${rows}</tbody></table>
       <h2>Gör så här</h2>

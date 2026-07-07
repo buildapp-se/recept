@@ -1,7 +1,7 @@
 // ponytail: minsta möjliga check av summering/skalning - körs med: node test.js
 const assert = require('assert');
 const fs = require('fs');
-const { aggregate, fmtNum, fmtItem, parseImport, normalizeState, makeBackup, safeUrl } = require('./app.js');
+const { aggregate, fmtNum, fmtItem, parseImport, normalizeState, makeBackup, safeUrl, nutritionPerPortion } = require('./app.js');
 
 const recipes = JSON.parse(fs.readFileSync(__dirname + '/starter.json', 'utf8'));
 
@@ -62,5 +62,16 @@ assert.strictEqual(restored.recipes.length, 1, 'backup wrapper läses');
 assert.strictEqual(restored.recipes[0].source, '', 'osäker källa följer inte med backup');
 assert.strictEqual(restored.selections.length, 1, 'val utan recept filtreras');
 assert.strictEqual(normalizeState(restored).extras[0].text, 'mjölk', 'rå state kan också återställas');
+
+// 8. Näringsvärde per portion: skalning, efter smak-uteslutning, saknad data flaggas
+const testNutrients = { 'lök': { kcal: 40, protein: 1, carbs: 9, fat: 0.1 }, 'salt': { kcal: 0, protein: 0, carbs: 0, fat: 0 } };
+const testRecipe = { portions: 2, ingredients: [
+  { name: 'lök', amount: 200 },
+  { name: 'salt', toTaste: true },
+  { name: 'okänd ingrediens', amount: 100 },
+] };
+const nutr = nutritionPerPortion(testRecipe, testNutrients);
+assert.strictEqual(nutr.kcal, 40, 'lök 200 g à 40 kcal/100g delat på 2 portioner = 40 kcal/portion');
+assert.deepStrictEqual(nutr.missing, ['okänd ingrediens'], 'okänd ingrediens flaggas, efter smak räknas inte som saknad');
 
 console.log('Alla test OK');
