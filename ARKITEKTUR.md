@@ -91,7 +91,7 @@ Receptformatet (g/ml, cat, group, toTaste osv) ändras inte. Indexet är deriver
 1. **Firebase Auth**: tokenverifiering i Workern, kontolänkning (Google + lösenord på samma konto), koppla befintliga konton, PIN pensioneras. **KLAR: deployad + live-verifierad 2026-07-08 (Patrik testade e-post + Google + länkning i produktion).**
 1b. **Namnbyte** (litet, före fas 2): auto-genererade namn ("patzlofgren") blir synliga ägaretiketter, användaren måste kunna byta. PUT /name (unikt, samma regex som legacy) + fält under Konto.
 2. **Publika fliken + sparräknare**: hemlig-toggle, saves-tabell, recipes_index deriverad vid PUT, paginerad flik sorterad per course, starter.json → systemkonto. **DEPLOYAD till Worker + D1 2026-07-08.** (Avsteg: LIMIT 200 i stället för riktig paginering, edgecache på feeden skippad — Bearer-header gör den ändå ocachebar utan extra regler; båda omprövas vid volym.)
-2b. **Ägarprofiler**: klickbar ägare från publika/vänner-kort, route som `#/anvandare/:ownerId`, API som `GET /users/:id/recipes`, visar ägarens offentliga skapade recept grupperade per course ur `recipes_index`. **DEPLOYAD 2026-07-08.**
+2b. **Ägarprofiler**: klickbar ägare från publika/vänner-kort, route som `#/anvandare/:ownerId`, API som `GET /users/:id/recipes`, visar ägarens offentliga skapade recept grupperade per course ur `recipes_index`. **DEPLOYAD + PRODVERIFIERAD 2026-07-08.**
 3. **Grupper**: groups/invites, inbjudningslänk, "Vänners recept"-flik ur samma index.
 4. **Offline/PWA**: service worker med cache-versionering per deploy.
 5. **Capacitor-appar** när butiksnärvaro är motiverad.
