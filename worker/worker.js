@@ -1,12 +1,16 @@
-// API för "Dom vi brukar laga" (orgutveckling.se/recept)
-// POST /register {name,pin} -> {token,name}
-// POST /login    {name,pin} -> {token,name}
-// GET  /state  (Bearer token) -> {state}
-// PUT  /state  (Bearer token) <- hela state-blobben {recipes,selections,extras,checked}
-// GET  /allas-recept (Bearer token) -> [{...recipe, owner}, ...] från alla konton
+// API för "Grammat" (orgutveckling.se/recept)
+// Auth: Firebase ID-token (JWT, verifieras mot Googles JWKS) ELLER legacy uuid-token (utfasas).
+// POST /register {name,pin} -> {token,name}   (legacy, utfasas)
+// POST /login    {name,pin} -> {token,name}   (legacy, utfasas)
+// POST /link     (Bearer Firebase-JWT) {legacyToken} -> {ok,name}  kopplar gammalt konto till Firebase-uid
+// GET  /state  (Bearer) -> {state,name}
+// PUT  /state  (Bearer) <- hela state-blobben {recipes,selections,extras,checked,struck}
+// GET  /allas-recept (Bearer) -> [{...recipe, owner}, ...] från alla konton
+// DELETE /account (Bearer Firebase-JWT) -> {ok}  raderar D1-raden (Firebase-usern raderas client-side)
+const FIREBASE_PROJECT = 'grammat-78450';
 const cors = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 const json = (d, s = 200) => Response.json(d, { status: s, headers: cors });
@@ -16,9 +20,75 @@ async function sha256hex(s) {
   return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join('');
 }
 
-async function userFromToken(req, env) {
+// ---- Firebase ID-token-verifiering (RS256 mot Googles publika JWKS, ingen SDK) ----
+let jwksCache = null, jwksExpires = 0;
+async function googleJwk(kid) {
+  if (!jwksCache || Date.now() > jwksExpires) {
+    const res = await fetch('https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com');
+    if (!res.ok) return null;
+    const m = /max-age=(\d+)/.exec(res.headers.get('Cache-Control') || '');
+    jwksExpires = Date.now() + (m ? Number(m[1]) : 3600) * 1000;
+    jwksCache = (await res.json()).keys;
+  }
+  return jwksCache.find(k => k.kid === kid) || null;
+}
+
+function b64urlToBytes(s) {
+  s = s.replace(/-/g, '+').replace(/_/g, '/');
+  s += '='.repeat((4 - (s.length % 4)) % 4);
+  return Uint8Array.from(atob(s), c => c.charCodeAt(0));
+}
+
+async function verifyFirebaseToken(token) {
+  try {
+    const [h, p, sig] = token.split('.');
+    const header = JSON.parse(new TextDecoder().decode(b64urlToBytes(h)));
+    if (header.alg !== 'RS256') return null;
+    const jwk = await googleJwk(header.kid);
+    if (!jwk) return null;
+    const key = await crypto.subtle.importKey('jwk', jwk, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['verify']);
+    const ok = await crypto.subtle.verify('RSASSA-PKCS1-v1_5', key, b64urlToBytes(sig), new TextEncoder().encode(h + '.' + p));
+    if (!ok) return null;
+    const c = JSON.parse(new TextDecoder().decode(b64urlToBytes(p)));
+    const now = Date.now() / 1000;
+    if (c.aud !== FIREBASE_PROJECT || c.iss !== 'https://securetoken.google.com/' + FIREBASE_PROJECT) return null;
+    if (!(c.exp > now) || !c.sub) return null;
+    return c;
+  } catch (e) {
+    return null;
+  }
+}
+
+// Första Firebase-inloggningen: skapa D1-rad. Namn från Google-displayName eller mejlens lokaldel,
+// unikgörs med siffersuffix. pin_hash '' = kan inte PIN-loggas; token slumpas men lämnar aldrig servern.
+async function createFirebaseUser(env, claims) {
+  let base = String(claims.name || (claims.email || '').split('@')[0] || '')
+    .toLowerCase().replace(/[^a-zåäö0-9_-]+/g, '').slice(0, 16);
+  if (base.length < 2) base = 'kock';
+  for (let i = 0; i < 100; i++) {
+    try {
+      await env.DB.prepare('INSERT INTO users (name, pin_hash, token, state, firebase_uid) VALUES (?,?,?,?,?)')
+        .bind(i ? base + i : base, '', crypto.randomUUID(), '', claims.sub).run();
+    } catch (e) {
+      // namnkrock: prova nästa suffix. uid-krock (dubbelanrop): raden finns, hämta den.
+      const existing = await env.DB.prepare('SELECT * FROM users WHERE firebase_uid = ?').bind(claims.sub).first();
+      if (existing) return existing;
+      continue;
+    }
+    return env.DB.prepare('SELECT * FROM users WHERE firebase_uid = ?').bind(claims.sub).first();
+  }
+  return null;
+}
+
+async function userFromRequest(req, env) {
   const t = (req.headers.get('Authorization') || '').replace(/^Bearer /, '');
   if (!t) return null;
+  if (t.split('.').length === 3) {
+    const claims = await verifyFirebaseToken(t);
+    if (!claims) return null;
+    const u = await env.DB.prepare('SELECT * FROM users WHERE firebase_uid = ?').bind(claims.sub).first();
+    return u || createFirebaseUser(env, claims);
+  }
   return env.DB.prepare('SELECT * FROM users WHERE token = ?').bind(t).first();
 }
 
@@ -47,14 +117,34 @@ export default {
           return json({ token, name });
         }
         const u = await env.DB.prepare('SELECT * FROM users WHERE name = ?').bind(name).first();
-        if (!u) return json({ error: 'Fel namn eller PIN.' }, 401);
+        if (!u || !u.pin_hash.includes(':')) return json({ error: 'Fel namn eller PIN.' }, 401);
         const [salt, hash] = u.pin_hash.split(':');
         if (await sha256hex(salt + pin) !== hash) return json({ error: 'Fel namn eller PIN.' }, 401);
         return json({ token: u.token, name });
       }
 
+      // Koppla gammalt namn+PIN-konto till inloggad Firebase-användare.
+      // Kräver JWT + det gamla kontots token (bevisar innehav utan att PIN skickas igen).
+      if (path === '/link' && req.method === 'POST') {
+        const t = (req.headers.get('Authorization') || '').replace(/^Bearer /, '');
+        const claims = t.split('.').length === 3 ? await verifyFirebaseToken(t) : null;
+        if (!claims) return json({ error: 'Inte inloggad.' }, 401);
+        const b = await req.json().catch(() => ({}));
+        const legacy = await env.DB.prepare('SELECT * FROM users WHERE token = ?').bind(String(b.legacyToken || '')).first();
+        if (!legacy) return json({ error: 'Hittar inte det gamla kontot.' }, 404);
+        if (legacy.firebase_uid === claims.sub) return json({ ok: true, name: legacy.name });
+        if (legacy.firebase_uid) return json({ error: 'Kontot är redan kopplat till en annan inloggning.' }, 409);
+        const current = await env.DB.prepare('SELECT * FROM users WHERE firebase_uid = ?').bind(claims.sub).first();
+        if (current) {
+          if (current.state && current.state !== '') return json({ error: 'Din nya inloggning har redan egna recept, kan inte koppla ihop automatiskt.' }, 409);
+          await env.DB.prepare('DELETE FROM users WHERE id = ?').bind(current.id).run();
+        }
+        await env.DB.prepare('UPDATE users SET firebase_uid = ? WHERE id = ?').bind(claims.sub, legacy.id).run();
+        return json({ ok: true, name: legacy.name });
+      }
+
       if (path === '/allas-recept' && req.method === 'GET') {
-        const u = await userFromToken(req, env);
+        const u = await userFromRequest(req, env);
         if (!u) return json({ error: 'Inte inloggad.' }, 401);
         const { results } = await env.DB.prepare('SELECT name, state FROM users').all();
         const out = [];
@@ -69,9 +159,9 @@ export default {
       }
 
       if (path === '/state') {
-        const u = await userFromToken(req, env);
+        const u = await userFromRequest(req, env);
         if (!u) return json({ error: 'Inte inloggad.' }, 401);
-        if (req.method === 'GET') return json({ state: u.state ? JSON.parse(u.state) : null });
+        if (req.method === 'GET') return json({ state: u.state ? JSON.parse(u.state) : null, name: u.name });
         if (req.method === 'PUT') {
           const body = await req.text();
           if (body.length > 262144) return json({ error: 'För mycket data (max 256 kB).' }, 413);
@@ -81,6 +171,14 @@ export default {
           await env.DB.prepare('UPDATE users SET state = ? WHERE id = ?').bind(JSON.stringify(s), u.id).run();
           return json({ ok: true });
         }
+      }
+
+      // GDPR: raderar all serverdata. Firebase-användaren raderas client-side (user.delete()).
+      if (path === '/account' && req.method === 'DELETE') {
+        const u = await userFromRequest(req, env);
+        if (!u) return json({ error: 'Inte inloggad.' }, 401);
+        await env.DB.prepare('DELETE FROM users WHERE id = ?').bind(u.id).run();
+        return json({ ok: true });
       }
     } catch (e) {
       return json({ error: 'Serverfel.' }, 500);

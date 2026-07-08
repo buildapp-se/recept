@@ -144,6 +144,20 @@ textarea{width:100%}
   </header>
   <main id="view" aria-live="polite"></main>
 </div>
+<script type="module">
+// Firebase Auth (endast identitet, all data ligger i D1). ESM direkt från CDN, ingen byggkedja.
+// Laddar den inte (offline/blockerad) kör appen vidare utloggad mot lokal state.
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
+import * as fbAuth from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
+const app = initializeApp({
+  apiKey: 'AIzaSyCQGq4jj9xd_F52EKov9qHRmQ9K9VudWdo', // publik identifierare, ingen hemlighet
+  authDomain: 'grammat-78450.firebaseapp.com',
+  projectId: 'grammat-78450',
+  appId: '1:266950913438:web:6eeae182108e91de10ba8f',
+});
+window.fb = { auth: fbAuth.getAuth(app), ...fbAuth };
+window.dispatchEvent(new Event('fb-ready'));
+</script>
 <script src="app.js"></script>
 </body>
 </html>

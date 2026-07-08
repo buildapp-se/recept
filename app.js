@@ -292,7 +292,11 @@ if (typeof document !== 'undefined') (async function () {
   const $ = sel => document.querySelector(sel);
   const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-  let auth = JSON.parse(localStorage.getItem('auth') || 'null');
+  let fb = null;                 // Firebase-modulen (window.fb), null tills CDN-laddningen är klar
+  let fbUser = null;             // inloggad Firebase-användare
+  let legacy = JSON.parse(localStorage.getItem('auth') || 'null'); // gammalt namn+PIN-konto (utfasas)
+  let authName = localStorage.getItem('authName') || (legacy ? legacy.name : null); // D1-namnet, sätts av /state
+  const loggedIn = () => !!(fbUser || legacy);
   let state = JSON.parse(localStorage.getItem('state') || 'null');
   let starter = [];
   let nutrients = {};
@@ -302,9 +306,10 @@ if (typeof document !== 'undefined') (async function () {
   try { state = normalizeState(state); } catch (e) { state = { recipes: [], selections: [], extras: [], checked: [], struck: {} }; }
 
   async function api(path, opts = {}) {
+    const token = fbUser ? await fbUser.getIdToken() : legacy ? legacy.token : null;
     const res = await fetch(API + path, {
       ...opts,
-      headers: { 'Content-Type': 'application/json', ...(auth ? { Authorization: 'Bearer ' + auth.token } : {}) },
+      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) },
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || 'Något gick fel (' + res.status + ').');
@@ -315,7 +320,7 @@ if (typeof document !== 'undefined') (async function () {
   let syncError = false;
   function save(rerender = true) {
     localStorage.setItem('state', JSON.stringify(state));
-    if (auth) {
+    if (loggedIn()) {
       clearTimeout(pushTimer);
       pushTimer = setTimeout(async () => {
         try { await api('/state', { method: 'PUT', body: JSON.stringify(state) }); syncError = false; }
@@ -326,14 +331,15 @@ if (typeof document !== 'undefined') (async function () {
   }
 
   async function pullState() {
-    if (!auth) return;
+    if (!loggedIn()) return;
     try {
-      const { state: remote } = await api('/state');
+      const { state: remote, name } = await api('/state');
+      if (name) { authName = name; localStorage.setItem('authName', name); }
       if (remote && Array.isArray(remote.recipes)) { state = normalizeState(remote); localStorage.setItem('state', JSON.stringify(state)); }
       else save(false); // nytt konto: ladda upp det lokala
       syncError = false;
     } catch (e) {
-      if (String(e.message).includes('401')) { auth = null; localStorage.removeItem('auth'); }
+      if (e.message === 'Inte inloggad.' || String(e.message).includes('401')) { legacy = null; localStorage.removeItem('auth'); }
       syncError = true;
     }
   }
@@ -347,7 +353,7 @@ if (typeof document !== 'undefined') (async function () {
   let allasList = null; // null = ej hämtad än
   let allasLoading = false;
   function loadAllas() {
-    if (!auth || allasList !== null || allasLoading) return;
+    if (!loggedIn() || allasList !== null || allasLoading) return;
     allasLoading = true;
     api('/allas-recept').then(list => { allasList = list; render(); }).catch(() => {}).finally(() => { allasLoading = false; });
   }
@@ -401,7 +407,7 @@ if (typeof document !== 'undefined') (async function () {
     }
 
     let othersHtml;
-    if (!auth) {
+    if (!loggedIn()) {
       othersHtml = '<p class="hint">Logga in för att se recept andra lagt till.</p>';
     } else if (allasList === null) {
       loadAllas();
@@ -582,6 +588,26 @@ if (typeof document !== 'undefined') (async function () {
       </form>`;
   }
 
+  // Firebase-felkoder till svenska.
+  function fbErr(e) {
+    const m = {
+      'auth/invalid-credential': 'Fel e-post eller lösenord.',
+      'auth/wrong-password': 'Fel e-post eller lösenord.',
+      'auth/user-not-found': 'Inget konto med den e-postadressen.',
+      'auth/email-already-in-use': 'E-postadressen har redan ett konto, logga in i stället.',
+      'auth/weak-password': 'Lösenordet behöver minst 6 tecken.',
+      'auth/invalid-email': 'Ogiltig e-postadress.',
+      'auth/popup-closed-by-user': 'Inloggningen avbröts.',
+      'auth/cancelled-popup-request': 'Inloggningen avbröts.',
+      'auth/popup-blocked': 'Webbläsaren blockerade inloggningsfönstret, tillåt popupfönster och försök igen.',
+      'auth/credential-already-in-use': 'Den inloggningen används redan av ett annat konto.',
+      'auth/requires-recent-login': 'Av säkerhetsskäl: logga ut, logga in igen och försök direkt.',
+      'auth/too-many-requests': 'För många försök, vänta en stund.',
+      'auth/network-request-failed': 'Ingen kontakt med inloggningstjänsten.',
+    };
+    return (e && m[e.code]) || (e && e.message) || 'Något gick fel.';
+  }
+
   function viewAccount() {
     const backup = `<h2>Backup</h2>
       <p>Backupen innehåller alla recept, valda recept, egna rader och avbockningar.</p>
@@ -590,23 +616,65 @@ if (typeof document !== 'undefined') (async function () {
         <label class="btn btn-ghost backup-file">Återställ från backup <input type="file" id="importBackup" accept="application/json,.json"></label>
       </p>
       <p id="backupError" class="warn" hidden></p>`;
-    if (auth) {
+    const loginForms = `
+      <p><button class="btn" id="googleLogin" type="button">Fortsätt med Google</button></p>
+      <form id="emailForm">
+        <label>E-post <input type="email" id="authEmail" autocomplete="username" required></label>
+        <label>Lösenord <input type="password" id="authPw" minlength="6" maxlength="64" autocomplete="current-password" required></label>
+        <p id="authError" class="warn" hidden></p>
+        <p><button class="btn" type="submit" data-mode="login">Logga in</button>
+        <button class="btn btn-ghost" type="submit" data-mode="register">Skapa konto</button>
+        <button class="btn btn-ghost" type="button" id="forgotPw">Glömt lösenordet?</button></p>
+      </form>`;
+    if (fbUser) {
+      const providers = fbUser.providerData.map(p => p.providerId);
+      const hasPw = providers.includes('password'), hasGoogle = providers.includes('google.com');
+      const ways = [hasGoogle ? 'Google' : '', hasPw ? 'e-post & lösenord' : ''].filter(Boolean).join(' · ');
       return `<div class="view-head"><h1>Konto</h1></div>
-        <p>Inloggad som <strong>${esc(auth.name)}</strong>. Recept och inköpslista synkas mellan dina enheter.</p>
+        <p>Inloggad som <strong>${esc(authName || fbUser.email || '')}</strong>${fbUser.email ? ' · ' + esc(fbUser.email) : ''}. Recept och inköpslista synkas mellan dina enheter.</p>
         ${syncError ? '<p class="warn">Kunde inte nå servern, ändringar sparas lokalt och synkas när det går igen.</p>' : ''}
+        <h2>Inloggningssätt</h2>
+        <p class="hint">${ways}</p>
+        ${hasGoogle ? '' : '<p><button class="btn btn-ghost" id="linkGoogle" type="button">Koppla Google-inloggning</button></p>'}
+        ${hasPw ? '' : `<form id="pwForm">
+          <label>Skapa lösenord: då kan även din partner logga in på kontot med ${esc(fbUser.email || 'din e-post')} och lösenordet.
+          <input type="password" id="pwNew" minlength="6" maxlength="64" autocomplete="new-password" required></label>
+          <p id="pwError" class="warn" hidden></p>
+          <p><button class="btn btn-ghost" type="submit">Spara lösenord</button></p>
+        </form>`}
+        <details class="prompt-box"><summary>Har du ett gammalt konto med namn + PIN? Hämta hit det.</summary>
+          <form id="linkForm">
+            <label>Namn <input type="text" id="linkName" maxlength="20" required></label>
+            <label>PIN-kod <input type="password" id="linkPin" inputmode="numeric" minlength="4" maxlength="64" required></label>
+            <p id="linkError" class="warn" hidden></p>
+            <p><button class="btn btn-ghost" type="submit">Koppla gamla kontot</button></p>
+          </form>
+        </details>
+        ${backup}
+        <p class="action-row"><button class="btn btn-ghost" id="logout">Logga ut</button> <button class="btn btn-danger" id="deleteAccount" type="button">Radera kontot</button></p>`;
+    }
+    if (legacy) {
+      return `<div class="view-head"><h1>Konto</h1></div>
+        <p>Inloggad som <strong>${esc(legacy.name)}</strong> med gamla PIN-inloggningen.</p>
+        ${syncError ? '<p class="warn">Kunde inte nå servern, ändringar sparas lokalt och synkas när det går igen.</p>' : ''}
+        <h2>Byt till nya inloggningen</h2>
+        <p class="hint">PIN-inloggningen fasas ut. Logga in med Google eller skapa konto med e-post, så följer dina recept med automatiskt och du kan återställa lösenordet själv.</p>
+        ${loginForms}
         ${backup}
         <p><button class="btn btn-ghost" id="logout">Logga ut</button></p>`;
     }
     return `<div class="view-head"><h1>Konto</h1></div>
-      <p>Utan konto sparas allt bara i den här webbläsaren. Skapa ett konto med namn och PIN-kod för att nå recepten och listan från mobilen i butiken.</p>
-      <form id="authForm">
-        <label>Namn <input type="text" id="authName" autocomplete="username" maxlength="20" required></label>
-        <label>PIN-kod <input type="password" id="authPin" inputmode="numeric" autocomplete="current-password" minlength="4" maxlength="64" required></label>
-        <p class="hint">PIN-koden går inte att återställa själv, välj något du kommer ihåg.</p>
-        <p id="authError" class="warn" hidden></p>
-        <p><button class="btn" type="submit" data-mode="login">Logga in</button>
-        <button class="btn btn-ghost" type="submit" data-mode="register">Skapa konto</button></p>
-      </form>
+      <p>Utan konto sparas allt bara i den här webbläsaren. Logga in för att nå recepten och listan från mobilen i butiken.</p>
+      ${loginForms}
+      <details class="prompt-box"><summary>Gammalt konto med namn + PIN?</summary>
+        <p class="hint">Logga in en sista gång här, byt sedan till nya inloggningen under Konto.</p>
+        <form id="authForm">
+          <label>Namn <input type="text" id="authName" autocomplete="username" maxlength="20" required></label>
+          <label>PIN-kod <input type="password" id="authPin" inputmode="numeric" autocomplete="current-password" minlength="4" maxlength="64" required></label>
+          <p id="authOldError" class="warn" hidden></p>
+          <p><button class="btn btn-ghost" type="submit">Logga in</button></p>
+        </form>
+      </details>
       ${backup}`;
   }
 
@@ -631,7 +699,7 @@ if (typeof document !== 'undefined') (async function () {
   function renderNav() {
     const n = state.selections.length;
     $('#navListCount').textContent = n ? ' (' + n + ')' : '';
-    $('#navUser').textContent = auth ? auth.name : 'konto';
+    $('#navUser').textContent = loggedIn() && authName ? authName : 'konto';
     const h = location.hash || '#/';
     document.querySelectorAll('.nav a').forEach(a => {
       const m = a.dataset.match;
@@ -833,33 +901,100 @@ if (typeof document !== 'undefined') (async function () {
       }
     };
 
+    // ---- inloggning (Firebase + legacy) ----
+    const showErr = (el, msg) => { el.textContent = msg; el.hidden = false; };
+    const googleLogin = $('#googleLogin');
+    if (googleLogin) googleLogin.onclick = async () => {
+      const errEl = $('#authError');
+      errEl.hidden = true;
+      if (!fb) return showErr(errEl, 'Inloggningen kunde inte laddas, kontrollera nätet och ladda om sidan.');
+      try { await fb.signInWithPopup(fb.auth, new fb.GoogleAuthProvider()); location.hash = '#/'; }
+      catch (e) { showErr(errEl, fbErr(e)); }
+    };
+    const emailForm = $('#emailForm');
+    if (emailForm) emailForm.onsubmit = async e => {
+      e.preventDefault();
+      const errEl = $('#authError');
+      errEl.hidden = true;
+      if (!fb) return showErr(errEl, 'Inloggningen kunde inte laddas, kontrollera nätet och ladda om sidan.');
+      const mode = e.submitter ? e.submitter.dataset.mode : 'login';
+      try {
+        if (mode === 'register') await fb.createUserWithEmailAndPassword(fb.auth, $('#authEmail').value.trim(), $('#authPw').value);
+        else await fb.signInWithEmailAndPassword(fb.auth, $('#authEmail').value.trim(), $('#authPw').value);
+        location.hash = '#/';
+      } catch (err) { showErr(errEl, fbErr(err)); }
+    };
+    const forgotPw = $('#forgotPw');
+    if (forgotPw) forgotPw.onclick = async () => {
+      const errEl = $('#authError');
+      errEl.hidden = true;
+      const email = $('#authEmail').value.trim();
+      if (!fb || !email) return showErr(errEl, 'Fyll i e-postadressen först.');
+      try { await fb.sendPasswordResetEmail(fb.auth, email); showErr(errEl, 'Återställningsmejl skickat till ' + email + '.'); }
+      catch (err) { showErr(errEl, fbErr(err)); }
+    };
+    const pwForm = $('#pwForm');
+    if (pwForm) pwForm.onsubmit = async e => {
+      e.preventDefault();
+      try { await fb.updatePassword(fbUser, $('#pwNew').value); render(); }
+      catch (err) { showErr($('#pwError'), fbErr(err)); }
+    };
+    const linkGoogle = $('#linkGoogle');
+    if (linkGoogle) linkGoogle.onclick = async () => {
+      try { await fb.linkWithPopup(fbUser, new fb.GoogleAuthProvider()); render(); }
+      catch (e) { alert(fbErr(e)); }
+    };
+    const linkForm = $('#linkForm');
+    if (linkForm) linkForm.onsubmit = async e => {
+      e.preventDefault();
+      const errEl = $('#linkError');
+      errEl.hidden = true;
+      try {
+        const data = await api('/login', { method: 'POST', body: JSON.stringify({ name: $('#linkName').value, pin: $('#linkPin').value }) });
+        await api('/link', { method: 'POST', body: JSON.stringify({ legacyToken: data.token }) });
+        allasList = null;
+        await pullState();
+        render();
+      } catch (err) { showErr(errEl, err.message); }
+    };
     const authForm = $('#authForm');
-    if (authForm) {
-      authForm.onsubmit = async e => {
-        e.preventDefault();
-        const mode = e.submitter ? e.submitter.dataset.mode : 'login';
-        const errEl = $('#authError');
-        errEl.hidden = true;
-        try {
-          const data = await api('/' + mode, { method: 'POST', body: JSON.stringify({ name: $('#authName').value, pin: $('#authPin').value }) });
-          auth = { name: data.name, token: data.token };
-          localStorage.setItem('auth', JSON.stringify(auth));
-          allasList = null;
-          await pullState();
-          location.hash = '#/';
-          render();
-        } catch (err) {
-          errEl.textContent = err.message;
-          errEl.hidden = false;
-        }
-      };
-    }
+    if (authForm) authForm.onsubmit = async e => {
+      e.preventDefault();
+      const errEl = $('#authOldError');
+      errEl.hidden = true;
+      try {
+        const data = await api('/login', { method: 'POST', body: JSON.stringify({ name: $('#authName').value, pin: $('#authPin').value }) });
+        legacy = { name: data.name, token: data.token };
+        authName = data.name;
+        localStorage.setItem('auth', JSON.stringify(legacy));
+        localStorage.setItem('authName', data.name);
+        allasList = null;
+        await pullState();
+        location.hash = '#/';
+        render();
+      } catch (err) { showErr(errEl, err.message); }
+    };
     const logout = $('#logout');
-    if (logout) logout.onclick = () => {
-      auth = null;
+    if (logout) logout.onclick = async () => {
+      if (fbUser && fb) await fb.signOut(fb.auth).catch(() => {});
+      legacy = null;
       localStorage.removeItem('auth');
+      authName = null;
+      localStorage.removeItem('authName');
       allasList = null;
       render();
+    };
+    const deleteAccount = $('#deleteAccount');
+    if (deleteAccount) deleteAccount.onclick = async () => {
+      if (!confirm('Radera kontot permanent? Allt på servern försvinner, går inte att ångra. Recepten i den här webbläsaren behålls lokalt.')) return;
+      try {
+        await api('/account', { method: 'DELETE' });
+        if (fbUser) await fbUser.delete(); // raderar Firebase-användaren, triggar onAuthStateChanged(null)
+        authName = null;
+        localStorage.removeItem('authName');
+        allasList = null;
+        render();
+      } catch (e) { alert(fbErr(e)); }
     };
 
     const exportBackup = $('#exportBackup');
@@ -895,7 +1030,32 @@ if (typeof document !== 'undefined') (async function () {
     };
   }
 
+  // Firebase startas efter första renderingen. onAuthStateChanged fyller på när den
+  // persisterade sessionen återställts; hade man kvar en legacy-inloggning kopplas den
+  // gamla kontoraden automatiskt till Firebase-uid:t (engångsuppgradering).
+  function initFirebase() {
+    fb = window.fb;
+    fb.onAuthStateChanged(fb.auth, async user => {
+      fbUser = user;
+      if (user) {
+        if (legacy) {
+          try { await api('/link', { method: 'POST', body: JSON.stringify({ legacyToken: legacy.token }) }); }
+          catch (e) { /* redan kopplat eller konflikt: /state avgör vad kontot ser */ }
+          legacy = null;
+          localStorage.removeItem('auth');
+        }
+        allasList = null;
+        await pullState();
+      } else if (!legacy) {
+        authName = null;
+        localStorage.removeItem('authName');
+      }
+      render();
+    });
+  }
+
   window.addEventListener('hashchange', render);
-  await pullState();
+  if (legacy) await pullState(); // gammal inloggning funkar som förut, utan Firebase
   render();
+  if (window.fb) initFirebase(); else window.addEventListener('fb-ready', initFirebase, { once: true });
 })();
