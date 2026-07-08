@@ -22,6 +22,12 @@ assert.strictEqual(items.find(i => i.key === 'riven ost').amount, 65, 'riven ost
 // 3. skipList: vatten ska inte hamna i listan
 assert.ok(!items.find(i => i.key === 'vatten'), 'vatten utesluts');
 
+// 3b. struck: bockade ingredienser (har hemma/redan i grytan) utesluts per recept
+items = aggregate(recipes, [{ id: 'kottfarssas', portions: 6 }, { id: 'kebab', portions: 6 }], { kottfarssas: ['vitlök'] });
+assert.strictEqual(items.find(i => i.key === 'vitlök').amount, 5, 'bara kebabens vitlök kvar');
+items = aggregate(recipes, [{ id: 'kottfarssas', portions: 6 }], { kottfarssas: ['vitlök'] });
+assert.ok(!items.find(i => i.key === 'vitlök'), 'helt bockad vara försvinner ur listan');
+
 // 4. efter smak: svartpeppar i veg-lasagne saknar mängd
 const peppar = items.find(i => i.key === 'svartpeppar');
 assert.strictEqual(fmtItem(peppar), 'efter smak');
@@ -30,9 +36,10 @@ assert.strictEqual(fmtItem(peppar), 'efter smak');
 assert.strictEqual(fmtNum(1234), '1 235', 'avrundas till närmsta 5, tusentalsmellanslag');
 assert.strictEqual(fmtNum(2.5), '2,5', 'decimalkomma');
 
-// 6. AI-import: kodstaket + prat runt JSON ska tolereras, fält normaliseras
+// 6. AI-import: kodstaket + prat runt JSON ska tolereras, fält normaliseras, alltid array tillbaka
 const aiSvar = 'Här är receptet!\n```json\n{"title":"Testgryta","portions":4,"ingredients":[{"name":"Gul Lök ","amount":110,"unit":"g","count":1,"cat":"grönt"},{"name":"salt","toTaste":true,"cat":"felkategori"},{"name":"vatten","amount":500,"unit":"ml","skipList":true,"cat":"övrigt"}],"steps":["Koka.",""]}\n```';
-const imp = parseImport(aiSvar, ['testgryta']);
+const [imp, ...rest] = parseImport(aiSvar, ['testgryta']);
+assert.strictEqual(rest.length, 0, 'enstaka objekt ger array med ett recept');
 assert.strictEqual(imp.id, 'testgryta-2', 'krockande id får suffix');
 assert.strictEqual(imp.ingredients[0].name, 'Gul Lök', 'namn trimmas');
 assert.strictEqual(imp.ingredients[1].cat, 'övrigt', 'okänd kategori faller tillbaka');
@@ -42,6 +49,17 @@ assert.strictEqual(imp.steps.length, 1, 'tomma steg filtreras');
 assert.strictEqual(imp.course, 'huvudratt', 'saknad/okänd course faller tillbaka till huvudratt');
 assert.throws(() => parseImport('inget json här', []), /Hittar ingen JSON/);
 assert.throws(() => parseImport('{"portions":4}', []), /title/);
+
+// 6b. AI-import av flera recept i en array: id-krock inom batchen, allt eller inget vid fel
+const ing = '[{"name":"pasta","amount":200,"unit":"g","cat":"skafferi"}]';
+const multi = parseImport(`Här! [{"title":"Soppa","ingredients":${ing}},{"title":"Soppa","ingredients":${ing}}]`, []);
+assert.strictEqual(multi.length, 2, 'två recept läses in');
+assert.strictEqual(multi[0].id, 'soppa');
+assert.strictEqual(multi[1].id, 'soppa-2', 'id-krock inom samma inklistring får suffix');
+assert.throws(() => parseImport(`[{"title":"Ok","ingredients":${ing}},{"portions":4}]`, []), /Recept 2: .*title/, 'fel pekar ut vilket recept, inget importeras');
+assert.throws(() => parseImport('[]', []), /tom/);
+const [medHakar] = parseImport(`prat [med hakar] i {"title":"Hak","ingredients":${ing}} slutet]`, []);
+assert.strictEqual(medHakar.id, 'hak', 'hakparenteser i prat runt ett objekt lurar inte tolkningen');
 
 // 7. Backup: wrapper + rå state tolereras, trasiga/okända fält normaliseras
 assert.strictEqual(safeUrl('javascript:alert(1)'), '', 'osäkra käll-länkar stoppas');
@@ -57,9 +75,12 @@ const backup = makeBackup({
   selections: [{ id: 'test', portions: 2 }, { id: 'saknas', portions: 4 }],
   extras: [{ id: 1, text: 'mjölk' }],
   checked: ['pasta'],
+  struck: { test: ['pasta'], saknas: ['x'], trasig: 'inte en array' },
 });
 const restored = normalizeState(backup);
 assert.strictEqual(restored.recipes.length, 1, 'backup wrapper läses');
+assert.deepStrictEqual(restored.struck, { test: ['pasta'] }, 'struck utan recept eller med trasigt format filtreras');
+assert.deepStrictEqual(normalizeState({ recipes: [] }).struck, {}, 'gammal state utan struck får tomt objekt');
 assert.strictEqual(restored.recipes[0].source, '', 'osäker källa följer inte med backup');
 assert.strictEqual(restored.recipes[0].course, 'huvudratt', 'saknad course i backup faller tillbaka till huvudratt');
 assert.ok(COURSES.includes('sas'), 'såser & röror finns som course');

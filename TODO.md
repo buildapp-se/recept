@@ -1,6 +1,6 @@
 # TODO: receptsajten
 
-Byggt och live 2026-07-07: sajt, worker, D1, konton, kvittolista, 17 startrecept, näringsvärde per portion, receptkategorier, hel-state backup/återställning. Se PROJECT.md för arkitektur.
+Byggt och live 2026-07-07: sajt, worker, D1, konton, kvittolista, 17 startrecept, näringsvärde per portion, receptkategorier, hel-state backup/återställning. 2026-07-08: ingrediensbockning i receptvyn (utesluts ur listan), wake lock, helklickbara kort, multi-recept-import från AI. Se PROJECT.md för arkitektur.
 
 ## Kvar / idéer
 - [ ] Stående agentrutin: före riskabla ändringar, D1-migreringar eller deploy ska Codex/Claude köra D1-export till lokal `backups/` (`npx wrangler d1 export recept --remote --output backups/recept-YYYY-MM-DD-HHMMSS.sql`). `backups/` är git-ignored och får inte pushas/publiceras.

@@ -49,10 +49,11 @@ h2{font-family:var(--font-display);font-weight:700;font-size:1.15rem;margin:1.6r
 .btn-danger{background:transparent;color:var(--lingon);border-color:var(--lingon)}
 .cards{display:grid;gap:.9rem}
 .card{background:var(--kvitto);border:1.5px solid var(--ink);border-radius:10px;padding:1rem 1.1rem;display:flex;flex-direction:column}
+.card[data-card]{cursor:pointer}
 .card-title{font-family:var(--font-display);font-weight:700;font-size:1.2rem;text-decoration:none;display:block}
 .card-title:hover{color:var(--lingon)}
 .card-meta{font-family:var(--font-mono);font-size:.75rem;color:var(--ink2);margin:.15rem 0 .7rem}
-.card-row{display:flex;align-items:center;gap:.8rem;flex-wrap:wrap;margin-top:auto;padding-top:.6rem}
+.card-row{display:flex;align-items:center;gap:.8rem;flex-wrap:wrap;margin-top:auto;padding-top:.9rem}
 .stepper{display:inline-flex;align-items:center;gap:.15rem;border:1.5px solid var(--ink);border-radius:8px;background:#fff}
 .stepper button{width:2.2rem;height:2.2rem;background:none;border:none;font-size:1.2rem;font-weight:700;color:var(--ink)}
 .stepper span{font-family:var(--font-mono);font-size:.85rem;min-width:4.5em;text-align:center}
@@ -61,6 +62,9 @@ h2{font-family:var(--font-display);font-weight:700;font-size:1.15rem;margin:1.6r
 .ing-table td{padding:.45rem .8rem;border-bottom:1px solid var(--lin);font-size:.95rem}
 .ing-table tr:last-child td{border-bottom:none}
 .ing-table .num{text-align:right;font-family:var(--font-mono);font-size:.85rem;white-space:nowrap}
+.ing-row[data-ing]{cursor:pointer}
+.ing-row.struck td{text-decoration:line-through;color:var(--ink2)}
+.ing-row .tick{display:inline-block;color:var(--senap);font-weight:700;margin-left:.4rem}
 .ing-group td{font-family:var(--font-mono);font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--ink2);padding-top:.9rem}
 .steps{padding-left:1.3rem;display:grid;gap:.55rem}
 .steps li::marker{font-family:var(--font-mono);font-weight:600;color:var(--lingon)}
@@ -119,7 +123,7 @@ textarea{width:100%}
   .wrap{max-width:920px}
   .cards{grid-template-columns:1fr 1fr 1fr}
 }
-@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}html{scroll-behavior:auto}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}html{scroll-behavior:auto}::view-transition-group(*),::view-transition-old(*),::view-transition-new(*){animation:none!important}}
 </style>
 </head>
 <body>

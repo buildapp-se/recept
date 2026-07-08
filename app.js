@@ -9,7 +9,8 @@ const COURSE_LABELS = { forratt: 'Förrätt', huvudratt: 'Huvudrätt', efterratt
 function keyOf(name) { return name.toLowerCase().trim(); }
 
 // Summerar valda recept (skalade till valda portioner) till inköpsrader.
-function aggregate(recipes, selections) {
+// struck = { receptId: [ingrediensnyckel, ...] }: bockade ingredienser (har hemma/redan i grytan) utesluts.
+function aggregate(recipes, selections, struck) {
   const byId = Object.fromEntries(recipes.map(r => [r.id, r]));
   const items = new Map();
   for (const sel of selections) {
@@ -19,6 +20,7 @@ function aggregate(recipes, selections) {
     for (const ing of r.ingredients) {
       if (ing.skipList) continue;
       const k = keyOf(ing.name);
+      if (struck && struck[sel.id] && struck[sel.id].includes(k)) continue;
       let it = items.get(k);
       if (!it) {
         it = { key: k, name: ing.name, cat: CATS.includes(ing.cat) ? ing.cat : 'övrigt', amount: 0, unit: null, count: 0, countUnit: null, toTaste: false, sources: [] };
@@ -143,11 +145,21 @@ function normalizeState(raw) {
     };
   });
 
+  const struck = {};
+  if (s.struck && typeof s.struck === 'object' && !Array.isArray(s.struck)) {
+    for (const [id, keys] of Object.entries(s.struck)) {
+      if (!Array.isArray(keys) || !recipes.some(r => r.id === id)) continue;
+      const ks = keys.filter(k => typeof k === 'string' && k);
+      if (ks.length) struck[id] = ks;
+    }
+  }
+
   return {
     recipes,
     selections: Array.isArray(s.selections) ? s.selections.map(x => ({ id: String(x.id || ''), portions: Math.max(1, Math.round(Number(x.portions) || 1)) })).filter(x => recipes.some(r => r.id === x.id)) : [],
     extras: Array.isArray(s.extras) ? s.extras.map(x => ({ id: x.id != null ? x.id : Date.now(), text: String(x.text || '').trim().slice(0, 80) })).filter(x => x.text) : [],
     checked: Array.isArray(s.checked) ? s.checked.map(String) : [],
+    struck,
   };
 }
 
@@ -165,13 +177,34 @@ function dedupeAllas(allasList, starterIds) {
   return others.map(r => ({ ...r, _ownerLabel: counts[r.id] > 1 ? r.owner : null }));
 }
 
-// Tolkar och normaliserar JSON som en AI-modell producerat med importprompten.
+// Tolkar och normaliserar JSON (ett recept eller en array av recept) som en AI-modell
+// producerat med importprompten. Returnerar alltid en array. Allt eller inget vid fel.
 function parseImport(text, takenIds) {
   let t = String(text).trim().replace(/^```[a-z]*\s*/i, '').replace(/```\s*$/, '');
-  const a = t.indexOf('{'), b = t.lastIndexOf('}');
-  if (a === -1 || b <= a) throw new Error('Hittar ingen JSON i det inklistrade. Klistra in hela svaret från AI-modellen.');
-  let d;
-  try { d = JSON.parse(t.slice(a, b + 1)); } catch (e) { throw new Error('Trasig JSON: ' + e.message); }
+  const oa = t.indexOf('{'), ob = t.lastIndexOf('}');
+  const aa = t.indexOf('['), ab = t.lastIndexOf(']');
+  let d = null;
+  if (aa !== -1 && ab > aa && (oa === -1 || aa < oa)) {
+    try { d = JSON.parse(t.slice(aa, ab + 1)); } catch (e) { /* prova objektet nedan */ }
+  }
+  if (d === null) {
+    if (oa === -1 || ob <= oa) throw new Error('Hittar ingen JSON i det inklistrade. Klistra in hela svaret från AI-modellen.');
+    try { d = JSON.parse(t.slice(oa, ob + 1)); } catch (e) { throw new Error('Trasig JSON: ' + e.message); }
+  }
+  const list = Array.isArray(d) ? d : [d];
+  if (!list.length) throw new Error('Arrayen är tom, inga recept att läsa in.');
+  const taken = takenIds.slice();
+  return list.map((r, i) => {
+    let recipe;
+    try { recipe = importRecipe(r, taken); }
+    catch (e) { throw list.length > 1 ? new Error('Recept ' + (i + 1) + ': ' + e.message) : e; }
+    taken.push(recipe.id);
+    return recipe;
+  });
+}
+
+function importRecipe(d, takenIds) {
+  if (!d || typeof d !== 'object') throw new Error('Receptet är inte ett JSON-objekt.');
   if (typeof d.title !== 'string' || !d.title.trim()) throw new Error('Fältet "title" saknas.');
   if (!Array.isArray(d.ingredients) || !d.ingredients.length) throw new Error('Fältet "ingredients" saknas eller är tomt.');
   const ingredients = d.ingredients.map(x => {
@@ -195,9 +228,9 @@ function parseImport(text, takenIds) {
   };
 }
 
-const AI_PROMPT = `Du får ett recept nedan. Gör om det till JSON enligt exakt detta format och svara med ENBART JSON, utan kodstaket och utan förklaringar.
+const AI_PROMPT = `Du får ett eller flera recept nedan (som text eller länkar). Gör om dem till JSON enligt exakt detta format och svara med ENBART en JSON-array, utan kodstaket och utan förklaringar.
 
-{
+[{
   "title": "Receptets namn",
   "portions": 4,
   "course": "huvudratt",
@@ -209,9 +242,10 @@ const AI_PROMPT = `Du får ett recept nedan. Gör om det till JSON enligt exakt 
     { "name": "vatten", "amount": 200, "unit": "ml", "skipList": true, "cat": "övrigt" }
   ],
   "steps": ["Första steget.", "Andra steget."]
-}
+}]
 
 Regler:
+- Svara alltid med en array, även för ett enda recept. Får du flera recept eller flera länkar: lägg alla som egna objekt i samma array.
 - Alla mängder i gram ("unit": "g") eller milliliter ("unit": "ml"). Konvertera: 1 msk = 15 ml, 1 tsk = 5 ml, 1 krm = 1 ml, 1 dl = 100 ml.
 - Styckvaror: räkna om till gram med normalvikter (gul lök 110 g/st, morot 120 g/st, tomat 120 g/st, vitlök 5 g/klyfta, lime 65 g/st, potatis 100 g/st) och ange dessutom "count" (ungefärligt antal) och "countUnit" ("st", "klyftor", "burk", "förp", "bunt").
 - Torrvaror per dl: vetemjöl 60 g, socker 85 g, ris 85 g, havregryn 35 g, riven ost 40 g, linser 85 g. Smör: 1 msk = 15 g.
@@ -242,8 +276,8 @@ if (typeof document !== 'undefined') (async function () {
   let nutrients = {};
   try { starter = await (await fetch('starter.json')).json(); } catch (e) { /* offline utan cache */ }
   try { nutrients = await (await fetch('nutrients.json')).json(); } catch (e) { /* offline utan cache */ }
-  if (!state) state = { recipes: [], selections: [], extras: [], checked: [] };
-  try { state = normalizeState(state); } catch (e) { state = { recipes: [], selections: [], extras: [], checked: [] }; }
+  if (!state) state = { recipes: [], selections: [], extras: [], checked: [], struck: {} };
+  try { state = normalizeState(state); } catch (e) { state = { recipes: [], selections: [], extras: [], checked: [], struck: {} }; }
 
   async function api(path, opts = {}) {
     const res = await fetch(API + path, {
@@ -299,7 +333,7 @@ if (typeof document !== 'undefined') (async function () {
   function recipeCard(r) {
     const sel = selFor(r.id);
     const nutr = nutritionPerPortion(r, nutrients);
-    return `<article class="card">
+    return `<article class="card" data-card="${esc(r.id)}">
       <a class="card-title" href="#/recept/${esc(r.id)}">${esc(r.title)}</a>
       <div class="card-meta">bas ${r.portions} port · ${r.ingredients.length} ingredienser${nutr.kcal ? ` · ${fmtNum(nutr.kcal)} kcal/port` : ''}</div>
       <div class="card-row">
@@ -327,7 +361,7 @@ if (typeof document !== 'undefined') (async function () {
     function card(r) {
       const mine = myIds.has(r.id);
       const nutr = nutritionPerPortion(r, nutrients);
-      return `<article class="card">
+      return `<article class="card" data-card="${esc(r.id)}">
         <a class="card-title" href="#/recept/${esc(r.id)}">${esc(r.title)}</a>
         <div class="card-meta">bas ${r.portions} port · ${r.ingredients.length} ingredienser${nutr.kcal ? ` · ${fmtNum(nutr.kcal)} kcal/port` : ''}${r._ownerLabel ? ' · ' + esc(r._ownerLabel) : ''}</div>
         <div class="card-row">
@@ -367,11 +401,19 @@ if (typeof document !== 'undefined') (async function () {
     const sel = mine ? selFor(id) : null;
     const portions = sel ? sel.portions : (previewPortions[id] || r.portions);
     const f = portions / r.portions;
-    let rows = '', lastGroup = null;
-    for (const ing of r.ingredients) {
+    // Bockade rader (har hemma/redan i grytan) samlas längst ner och utesluts ur inköpslistan.
+    const struckKeys = state.struck[id] || [];
+    let rows = '', struckRows = '', lastGroup = null;
+    r.ingredients.forEach((ing, i) => {
+      const k = keyOf(ing.name);
+      const isStruck = mine && struckKeys.includes(k);
+      const attr = mine ? ` data-ing="${esc(k)}" style="view-transition-name:ing-${i}"` : '';
+      const row = `<tr class="ing-row${isStruck ? ' struck' : ''}"${attr}><td>${esc(ing.name)}</td><td class="num">${fmtIngredient(ing, f)}${isStruck ? '<span class="tick">✓</span>' : ''}</td></tr>`;
+      if (isStruck) { struckRows += row; return; }
       if ((ing.group || null) !== lastGroup) { lastGroup = ing.group || null; if (lastGroup) rows += `<tr class="ing-group"><td colspan="2">${esc(lastGroup)}</td></tr>`; }
-      rows += `<tr><td>${esc(ing.name)}</td><td class="num">${fmtIngredient(ing, f)}</td></tr>`;
-    }
+      rows += row;
+    });
+    rows += struckRows;
     const steps = r.steps.length
       ? '<ol class="steps">' + r.steps.map(s => `<li>${esc(s)}</li>`).join('') + '</ol>'
       : '<p class="empty">Inga steg nedskrivna.</p>';
@@ -394,6 +436,7 @@ if (typeof document !== 'undefined') (async function () {
       ${portionBar}
       ${nutrLine}
       <h2>Ingredienser</h2>
+      ${mine ? '<p class="hint">Tryck på en rad när du har varan hemma eller redan lagt den i grytan, den stryks och hoppar ur inköpslistan.</p>' : ''}
       <table class="ing-table"><tbody>${rows}</tbody></table>
       <h2>Gör så här</h2>
       ${steps}
@@ -403,7 +446,7 @@ if (typeof document !== 'undefined') (async function () {
 
   function listAsText() {
     const checked = new Set(state.checked);
-    const items = aggregate(state.recipes, state.selections).filter(it => !checked.has(it.key));
+    const items = aggregate(state.recipes, state.selections, state.struck).filter(it => !checked.has(it.key));
     const byCat = {};
     for (const it of items) (byCat[it.cat] = byCat[it.cat] || []).push(it);
     const lines = [];
@@ -421,7 +464,7 @@ if (typeof document !== 'undefined') (async function () {
   }
 
   function viewList() {
-    const items = aggregate(state.recipes, state.selections);
+    const items = aggregate(state.recipes, state.selections, state.struck);
     const byCat = {};
     for (const it of items) (byCat[it.cat] = byCat[it.cat] || []).push(it);
     const checked = new Set(state.checked);
@@ -502,16 +545,16 @@ if (typeof document !== 'undefined') (async function () {
     return `<div class="view-head"><h1>Klistra in från AI</h1></div>
       <ol class="steps howto">
         <li>Kopiera prompten nedan.</li>
-        <li>Klistra in den i valfri AI-modell (Claude, ChatGPT, Gemini ...) och klistra in receptet efter, eller ge en länk till receptet.</li>
-        <li>Kopiera JSON-svaret du får tillbaka och klistra in det i rutan längst ner. Klart.</li>
+        <li>Klistra in den i valfri AI-modell (Claude, ChatGPT, Gemini ...) och klistra in ett eller flera recept efter, eller länkar till recepten.</li>
+        <li>Kopiera JSON-svaret du får tillbaka och klistra in det i rutan längst ner. Alla recepten läses in på en gång. Klart.</li>
       </ol>
       <p><button class="btn" id="copyPrompt">Kopiera prompten</button></p>
       <details class="prompt-box"><summary>Visa prompten</summary><pre>${esc(AI_PROMPT)}</pre></details>
       <form id="importForm">
         <label>AI-modellens svar
-        <textarea id="importText" rows="10" placeholder='{ "title": ... }' required></textarea></label>
+        <textarea id="importText" rows="10" placeholder='[ { "title": ... } ]' required></textarea></label>
         <p id="importError" class="warn" hidden></p>
-        <p><button class="btn" type="submit">Läs in receptet</button></p>
+        <p><button class="btn" type="submit">Läs in</button></p>
       </form>`;
   }
 
@@ -544,6 +587,23 @@ if (typeof document !== 'undefined') (async function () {
   }
 
   // ---------- render + händelser ----------
+  // Skärmen hålls vaken medan ett recept är uppe (man står och lagar mat).
+  let wakeLock = null; // promise för aktivt/väntande lås
+  function syncWakeLock() {
+    const want = /^#\/recept\//.test(location.hash) && document.visibilityState === 'visible';
+    if (want && !wakeLock && navigator.wakeLock) {
+      const p = navigator.wakeLock.request('screen').then(l => {
+        l.addEventListener('release', () => { if (wakeLock === p) wakeLock = null; });
+        return l;
+      }).catch(() => { if (wakeLock === p) wakeLock = null; return null; });
+      wakeLock = p;
+    } else if (!want && wakeLock) {
+      wakeLock.then(l => l && l.release().catch(() => {}));
+      wakeLock = null;
+    }
+  }
+  document.addEventListener('visibilitychange', syncWakeLock);
+
   function renderNav() {
     const n = state.selections.length;
     $('#navListCount').textContent = n ? ' (' + n + ')' : '';
@@ -571,6 +631,7 @@ if (typeof document !== 'undefined') (async function () {
     $('#view').innerHTML = html;
     renderNav();
     bind();
+    syncWakeLock();
   }
 
   function bind() {
@@ -588,7 +649,20 @@ if (typeof document !== 'undefined') (async function () {
     });
     view.querySelectorAll('[data-unselect]').forEach(b => b.onclick = () => {
       state.selections = state.selections.filter(s => s.id !== b.dataset.unselect);
+      delete state.struck[b.dataset.unselect]; // klar med receptet: nollställ bockade ingredienser
       save();
+    });
+    view.querySelectorAll('[data-ing]').forEach(row => row.onclick = () => {
+      const id = decodeURIComponent(location.hash.replace('#/recept/', ''));
+      const k = row.dataset.ing;
+      const cur = state.struck[id] || [];
+      const next = cur.includes(k) ? cur.filter(x => x !== k) : [...cur, k];
+      if (next.length) state.struck[id] = next; else delete state.struck[id];
+      if (document.startViewTransition) document.startViewTransition(() => save()); else save();
+    });
+    view.querySelectorAll('[data-card]').forEach(c => c.onclick = e => {
+      if (e.target.closest('.card-row, a, button')) return; // knappraden är död zon
+      location.hash = '#/recept/' + encodeURIComponent(c.dataset.card);
     });
     view.querySelectorAll('[data-step]').forEach(b => b.onclick = () => {
       const [id, d] = b.dataset.step.split('|');
@@ -629,6 +703,7 @@ if (typeof document !== 'undefined') (async function () {
       const id = b.dataset.removeAllas;
       state.recipes = state.recipes.filter(x => x.id !== id);
       state.selections = state.selections.filter(s => s.id !== id);
+      delete state.struck[id];
       save();
     });
     view.querySelectorAll('[data-delete]').forEach(b => b.onclick = () => {
@@ -636,6 +711,7 @@ if (typeof document !== 'undefined') (async function () {
       if (!confirm('Ta bort "' + r.title + '"? Tas endast bort från dina recept, går inte att ångra.')) return;
       state.recipes = state.recipes.filter(x => x.id !== r.id);
       state.selections = state.selections.filter(s => s.id !== r.id);
+      delete state.struck[r.id];
       location.hash = '#/';
       save();
     });
@@ -665,6 +741,7 @@ if (typeof document !== 'undefined') (async function () {
     const clearBtn = $('#clearList');
     if (clearBtn) clearBtn.onclick = () => {
       if (!confirm('Töm hela listan?')) return;
+      for (const s of state.selections) delete state.struck[s.id]; // recepten lämnar listan: nollställ bockar
       state.selections = []; state.extras = []; state.checked = [];
       save();
     };
@@ -716,9 +793,9 @@ if (typeof document !== 'undefined') (async function () {
       const errEl = $('#importError');
       errEl.hidden = true;
       try {
-        const recipe = parseImport($('#importText').value, state.recipes.map(r => r.id));
-        state.recipes.push(recipe);
-        location.hash = '#/recept/' + recipe.id;
+        const recipes = parseImport($('#importText').value, state.recipes.map(r => r.id));
+        state.recipes.push(...recipes);
+        location.hash = recipes.length === 1 ? '#/recept/' + recipes[0].id : '#/';
         save();
       } catch (err) {
         errEl.textContent = err.message;
