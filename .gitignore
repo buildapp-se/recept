@@ -1,3 +1,4 @@
 worker/.wrangler/
 node_modules/
 backups/
+.wrangler/

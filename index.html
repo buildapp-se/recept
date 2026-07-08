@@ -7,9 +7,10 @@
 <title>Grammat: recept &amp; inköpslista</title>
 <meta name="description" content="Grammat. Recept och inköpslista, allt i gram.">
 <meta name="theme-color" content="#EAEDDF">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍲</text></svg>">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="icon-512.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Schibsted+Grotesk:ital,wght@0,400;0,500;0,700;1,400&family=Spline+Sans+Mono:wght@400;600&display=swap">
@@ -17,10 +18,11 @@
 :root{
   --papper:#EAEDDF;      /* blekt örtgrönt papper */
   --ink:#20281A;         /* djup grytgrön, nästan svart */
-  --ink2:#5A6350;        /* dämpad text */
+  --ink2:#5C5A4E;        /* dämpad text (WCAG AA mot kvitto/papper) */
   --lin:#CDD3BC;         /* linjer, ramar */
   --lingon:#9E2B3E;      /* primär accent, knappar */
-  --senap:#DDA321;       /* markering, avbockat */
+  --gron:#2E6B43;        /* markering, avbockat (mörk pinjegrön) */
+  --strykt:#6B6858;      /* överstruken/avbockad text */
   --kvitto:#FBFAF2;      /* kvittopapper */
   --font-display:'Bricolage Grotesque',sans-serif;
   --font-body:'Schibsted Grotesk',sans-serif;
@@ -38,15 +40,15 @@ header.brand{padding:1.5rem 0 .5rem}
 .tagline{font-family:var(--font-mono);font-size:.72rem;color:var(--ink2);letter-spacing:.08em;text-transform:uppercase;margin-top:.35rem}
 .nav{position:fixed;bottom:0;left:0;right:0;background:var(--ink);display:flex;justify-content:center;gap:0;z-index:10;padding-bottom:env(safe-area-inset-bottom)}
 .nav a{flex:1;max-width:214px;text-align:center;padding:.9rem .5rem;color:var(--papper);text-decoration:none;font-family:var(--font-mono);font-size:.78rem;letter-spacing:.12em;text-transform:uppercase;border-top:3px solid transparent}
-.nav a.active{border-top-color:var(--senap);color:var(--senap)}
-.nav a:focus-visible{outline:2px solid var(--senap);outline-offset:-4px}
+.nav a.active{border-top-color:var(--gron);color:#fff}
+.nav a:focus-visible{outline:2px solid var(--papper);outline-offset:-4px}
 main{padding-top:1rem}
 .view-head{display:flex;align-items:baseline;justify-content:space-between;gap:1rem;margin:1.2rem 0 1rem;flex-wrap:wrap}
 h1{font-family:var(--font-display);font-weight:800;font-size:1.7rem;letter-spacing:-.02em;line-height:1.1}
 h2{font-family:var(--font-display);font-weight:700;font-size:1.15rem;margin:1.6rem 0 .6rem}
 .btn{display:inline-block;background:var(--lingon);color:#fff;border:2px solid var(--lingon);border-radius:8px;padding:.5em 1.1em;font-weight:700;font-size:.95rem;text-decoration:none;transition:transform .12s ease}
 .btn:hover{transform:translateY(-1px)}
-.btn:focus-visible,.kvitto-check:focus-visible,.stepper button:focus-visible{outline:3px solid var(--senap);outline-offset:2px}
+.btn:focus-visible,.kvitto-check:focus-visible,.stepper button:focus-visible{outline:3px solid var(--gron);outline-offset:2px}
 .btn-ghost{background:transparent;color:var(--ink);border-color:var(--ink)}
 .btn-danger{background:transparent;color:var(--lingon);border-color:var(--lingon)}
 .cards{display:grid;gap:.9rem}
@@ -65,8 +67,8 @@ h2{font-family:var(--font-display);font-weight:700;font-size:1.15rem;margin:1.6r
 .ing-table tr:last-child td{border-bottom:none}
 .ing-table .num{text-align:right;font-family:var(--font-mono);font-size:.85rem;white-space:nowrap}
 .ing-row[data-ing]{cursor:pointer}
-.ing-row.struck td{text-decoration:line-through;color:var(--ink2)}
-.ing-row .tick{display:inline-block;color:var(--senap);font-weight:700;margin-right:.4rem}
+.ing-row.struck td{text-decoration:line-through;color:var(--strykt)}
+.ing-row .tick{display:inline-block;color:var(--gron);font-weight:700;margin-right:.4rem}
 .ing-group td{font-family:var(--font-mono);font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--ink2);padding-top:.9rem}
 .steps{padding-left:1.3rem;display:grid;gap:.55rem}
 .steps li::marker{font-family:var(--font-mono);font-weight:600;color:var(--lingon)}
@@ -85,14 +87,14 @@ h2{font-family:var(--font-display);font-weight:700;font-size:1.15rem;margin:1.6r
 .kvitto-cat{font-size:.7rem;letter-spacing:.14em;color:var(--ink2);text-align:center;margin:1rem 0 .3rem}
 .kvitto-item{display:flex;align-items:baseline;gap:.6rem;padding:.3rem 0;font-size:.86rem}
 .kvitto-check{width:1.35rem;height:1.35rem;flex-shrink:0;align-self:center;border:1.5px solid var(--ink);border-radius:4px;background:#fff;font-weight:600;line-height:1;color:var(--lingon)}
-.kvitto-item.done .kvitto-check{background:var(--senap);border-color:var(--senap);color:var(--ink)}
+.kvitto-item.done .kvitto-check{background:var(--gron);border-color:var(--gron);color:#fff}
 .kvitto-name{flex:1;min-width:0}
 .kvitto-name summary{list-style:none;cursor:pointer}
 .kvitto-name summary::-webkit-details-marker{display:none}
-.kvitto-item.done .kvitto-name summary,.kvitto-item.done>span.kvitto-name{text-decoration:line-through;color:var(--ink2)}
+.kvitto-item.done .kvitto-name summary,.kvitto-item.done>span.kvitto-name{text-decoration:line-through;color:var(--strykt)}
 .kvitto-src{font-size:.72rem;color:var(--ink2);padding:.2rem 0 .3rem}
 .kvitto-amount{font-size:.8rem;white-space:nowrap;text-align:right}
-.kvitto-item.done .kvitto-amount{color:var(--ink2)}
+.kvitto-item.done .kvitto-amount{color:var(--strykt)}
 .kvitto-del{background:none;border:none;font-size:.9rem;opacity:.6}
 .kvitto-foot{border-top:1px dashed var(--ink2);margin-top:1rem;padding-top:.8rem;text-align:center;font-size:.78rem;letter-spacing:.1em}
 
@@ -106,7 +108,7 @@ h2{font-family:var(--font-display);font-weight:700;font-size:1.15rem;margin:1.6r
 .backup-actions{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center}
 .backup-file input{position:absolute;inline-size:1px;block-size:1px;opacity:0;pointer-events:none}
 input,select,textarea{font:inherit;color:var(--ink);background:#fff;border:1.5px solid var(--ink);border-radius:8px;padding:.45em .7em}
-input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--senap);outline-offset:1px}
+input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--gron);outline-offset:1px}
 label{display:block;margin:.8rem 0;font-weight:500}
 label input{display:block;width:100%;margin-top:.25rem}
 textarea{width:100%}

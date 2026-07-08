@@ -430,7 +430,6 @@ if (typeof document !== 'undefined') (async function () {
     const actionBar = mine
       ? `<p class="action-row">
         <button class="btn btn-ghost" data-share="${esc(id)}">Dela receptet</button>
-        <button class="btn btn-ghost" data-duplicate="${esc(id)}">Gör en kopia</button>
         <button class="btn btn-danger" data-delete="${esc(id)}">Ta bort receptet</button>
       </p>`
       : `<p class="action-row"><button class="btn" data-add-allas="${esc(id)}">Lägg till i mina recept</button> <button class="btn btn-ghost" data-share="${esc(id)}">Dela receptet</button></p>`;
@@ -689,15 +688,6 @@ if (typeof document !== 'undefined') (async function () {
       try { await navigator.clipboard.writeText(JSON.stringify([{ title, portions, course, source, ingredients, steps }], null, 2)); b.textContent = 'Kopierat! Skicka till en kompis'; }
       catch (e) { b.textContent = 'Kunde inte kopiera'; }
       setTimeout(() => { b.textContent = 'Dela receptet'; }, 2500);
-    });
-    view.querySelectorAll('[data-duplicate]').forEach(b => b.onclick = () => {
-      const r = state.recipes.find(x => x.id === b.dataset.duplicate);
-      const copy = JSON.parse(JSON.stringify(r));
-      copy.id = slugify(r.title + ' kopia', state.recipes.map(x => x.id));
-      copy.title = r.title + ' (kopia)';
-      state.recipes.push(copy);
-      location.hash = '#/redigera/' + encodeURIComponent(copy.id);
-      save();
     });
     view.querySelectorAll('[data-add-allas]').forEach(b => b.onclick = () => {
       const id = b.dataset.addAllas;
