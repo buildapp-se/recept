@@ -7,6 +7,7 @@ const COURSES = ['forratt', 'huvudratt', 'efterratt', 'dryck', 'sas'];
 const COURSE_LABELS = { forratt: 'Förrätt', huvudratt: 'Huvudrätt', efterratt: 'Efterrätt', dryck: 'Drycker', sas: 'Såser & röror' };
 
 function keyOf(name) { return name.toLowerCase().trim(); }
+function normalizeCourse(course) { return COURSES.includes(course) ? course : 'huvudratt'; }
 
 // Summerar valda recept (skalade till valda portioner) till inköpsrader.
 // struck = { receptId: [ingrediensnyckel, ...] }: bockade ingredienser (har hemma/redan i grytan) utesluts.
@@ -147,11 +148,11 @@ function normalizeState(raw) {
     const idBase = typeof r.id === 'string' && r.id.trim() ? slugify(r.id, []) : slugify(title, []);
     const id = taken.includes(idBase) ? slugify(idBase, taken) : idBase;
     taken.push(id);
-    return {
+    const out = {
       id,
       title,
       portions: typeof r.portions === 'number' && r.portions >= 1 ? Math.round(r.portions) : 4,
-      course: COURSES.includes(r.course) ? r.course : 'huvudratt',
+      course: normalizeCourse(r.course),
       source: safeUrl(r.source),
       ingredients: r.ingredients.map(x => {
         if (!x || typeof x !== 'object' || typeof x.name !== 'string' || !x.name.trim()) throw new Error('En ingrediens i "' + title + '" saknar namn.');
@@ -165,6 +166,10 @@ function normalizeState(raw) {
       }),
       steps: Array.isArray(r.steps) ? r.steps.filter(x => typeof x === 'string' && x.trim()).map(x => x.trim()) : [],
     };
+    if (r.private === true) out.private = true; // hemligt: indexeras aldrig av servern
+    // src = varifrån receptet sparades (ägar-id + recept-id), driver sparräknaren vid borttag
+    if (r.src && typeof r.src === 'object' && Number.isInteger(r.src.owner) && typeof r.src.id === 'string') out.src = { owner: r.src.owner, id: r.src.id };
+    return out;
   });
 
   const struck = {};
@@ -196,7 +201,7 @@ function dedupeAllas(allasList, starterIds) {
   const others = allasList.filter(r => !starterSet.has(r.id));
   const counts = {};
   for (const r of others) counts[r.id] = (counts[r.id] || 0) + 1;
-  return others.map(r => ({ ...r, _ownerLabel: counts[r.id] > 1 ? r.owner : null }));
+  return others.map(r => ({ ...r, _ownerLabel: r.owner || null, _idCollision: counts[r.id] > 1 }));
 }
 
 // Tolkar och normaliserar JSON (ett recept eller en array av recept) som en AI-modell
@@ -243,7 +248,7 @@ function importRecipe(d, takenIds) {
     id: slugify(d.title, takenIds),
     title: d.title.trim(),
     portions: typeof d.portions === 'number' && d.portions >= 1 ? Math.round(d.portions) : 4,
-    course: COURSES.includes(d.course) ? d.course : 'huvudratt',
+    course: normalizeCourse(d.course),
     source: safeUrl(d.source),
     ingredients,
     steps: Array.isArray(d.steps) ? d.steps.filter(s => typeof s === 'string' && s.trim()).map(s => s.trim()) : [],
@@ -284,7 +289,7 @@ Regler:
 Recept:
 `;
 
-if (typeof module !== 'undefined') { module.exports = { CATS, COURSES, COURSE_LABELS, aggregate, fmtNum, fmtItem, fmtIngredient, recipeAsText, spiceHint, nutritionPerPortion, keyOf, slugify, safeUrl, normalizeState, makeBackup, parseImport, dedupeAllas }; }
+if (typeof module !== 'undefined') { module.exports = { CATS, COURSES, COURSE_LABELS, normalizeCourse, aggregate, fmtNum, fmtItem, fmtIngredient, recipeAsText, spiceHint, nutritionPerPortion, keyOf, slugify, safeUrl, normalizeState, makeBackup, parseImport, dedupeAllas }; }
 
 // ---------- app ----------
 if (typeof document !== 'undefined') (async function () {
@@ -352,10 +357,16 @@ if (typeof document !== 'undefined') (async function () {
 
   let allasList = null; // null = ej hämtad än
   let allasLoading = false;
+  let allasLoadError = false;
   function loadAllas() {
     if (!loggedIn() || allasList !== null || allasLoading) return;
     allasLoading = true;
-    api('/allas-recept').then(list => { allasList = list; render(); }).catch(() => {}).finally(() => { allasLoading = false; });
+    allasLoadError = false;
+    api('/feed')
+      .catch(() => api('/allas-recept').then(list => list.map(r => ({ ...r, course: normalizeCourse(r.course) }))))
+      .then(list => { allasList = list.map(r => ({ ...r, course: normalizeCourse(r.course) })); render(); })
+      .catch(() => { allasLoadError = true; render(); })
+      .finally(() => { allasLoading = false; });
   }
 
   function recipeCard(r) {
@@ -384,41 +395,53 @@ if (typeof document !== 'undefined') (async function () {
   }
 
   function viewAllasRecept() {
-    const myIds = new Set(state.recipes.map(r => r.id));
+    const mySrcs = new Set(state.recipes.filter(r => r.src).map(r => r.src.owner + '|' + r.src.id));
+    const myLocalIds = new Set(state.recipes.filter(r => !r.src).map(r => r.id));
+    const rowKey = r => Number.isInteger(r.ownerId) ? r.ownerId + '|' + r.id : 'starter|' + r.id;
+    const mineFor = r => Number.isInteger(r.ownerId) ? mySrcs.has(rowKey(r)) || (r.owner === 'grammat' && myLocalIds.has(r.id)) : myLocalIds.has(r.id);
 
     function card(r) {
-      const mine = myIds.has(r.id);
+      const mine = mineFor(r);
       const nutr = nutritionPerPortion(r, nutrients);
+      const key = rowKey(r);
       return `<article class="card" data-card="${esc(r.id)}">
         <a class="card-title" href="#/recept/${esc(r.id)}">${esc(r.title)}</a>
-        <div class="card-meta">bas ${r.portions} port · ${r.ingredients.length} ingredienser${nutr.kcal ? ` · ${fmtNum(nutr.kcal)} kcal/port` : ''}${r._ownerLabel ? ' · ' + esc(r._ownerLabel) : ''}</div>
+        <div class="card-meta">bas ${r.portions} port · ${r.ingredients.length} ingredienser${nutr.kcal ? ` · ${fmtNum(nutr.kcal)} kcal/port` : ''}${r.saves ? ` · sparad av ${fmtNum(r.saves)}` : ''}${r._ownerLabel ? ' · från ' + esc(r._ownerLabel) : ''}</div>
         <div class="card-row">
-          ${mine ? `<button class="btn btn-ghost" data-remove-allas="${esc(r.id)}">Ta bort ur mina recept</button>` : `<button class="btn" data-add-allas="${esc(r.id)}">Lägg till i mina recept</button>`}
+          ${mine ? `<button class="btn btn-ghost" data-remove-allas="${esc(key)}">Ta bort ur mina recept</button>` : `<button class="btn" data-add-allas="${esc(key)}">Lägg till i mina recept</button>`}
         </div>
       </article>`;
     }
 
     function sections(list) {
       const byCourse = {};
-      for (const r of list) (byCourse[r.course] = byCourse[r.course] || []).push(r);
+      for (const r of list) {
+        const course = normalizeCourse(r.course);
+        (byCourse[course] = byCourse[course] || []).push({ ...r, course });
+      }
       return COURSES.filter(c => byCourse[c]).map(c => `
         <h2>${esc(COURSE_LABELS[c])}</h2>
         <div class="cards">${byCourse[c].map(card).join('')}</div>`).join('');
     }
 
-    let othersHtml;
+    // Inloggad med laddad feed: startrecepten kommer från systemkontot grammat (samma källa
+    // som allt annat). Utloggad/laddar: starter.json som förut.
+    let starterRows = starter, othersHtml;
     if (!loggedIn()) {
       othersHtml = '<p class="hint">Logga in för att se recept andra lagt till.</p>';
     } else if (allasList === null) {
       loadAllas();
-      othersHtml = '<p class="hint">Laddar recept från andra …</p>';
+      othersHtml = allasLoadError ? '<p class="warn">Kunde inte ladda recept från andra just nu.</p>' : '<p class="hint">Laddar recept från andra …</p>';
     } else {
-      const withLabels = dedupeAllas(allasList, starter.map(r => r.id));
-      othersHtml = withLabels.length ? sections(withLabels) : '';
+      const sys = allasList.filter(r => r.owner === 'grammat');
+      if (sys.length) starterRows = sys;
+      const withLabels = dedupeAllas(allasList.filter(r => r.owner !== 'grammat'), starterRows.map(r => r.id));
+      starterRows = starterRows.concat(withLabels);
+      othersHtml = '';
     }
 
     return `<div class="view-head"><h1>Allas recept</h1></div>
-      ${sections(starter)}
+      ${sections(starterRows)}
       ${othersHtml}`;
   }
 
@@ -559,6 +582,7 @@ if (typeof document !== 'undefined') (async function () {
         <label>Basportioner <input type="number" id="edPortions" value="${r ? r.portions : 4}" min="1" max="99" required></label>
         <label>Kategori <select id="edCourse">${COURSES.map(c => `<option value="${c}"${(r ? r.course : 'huvudratt') === c ? ' selected' : ''}>${COURSE_LABELS[c]}</option>`).join('')}</select></label>
         <label>Källa (länk, valfritt) <input type="url" id="edSource" value="${r ? esc(r.source || '') : ''}"></label>
+        <label><input type="checkbox" id="edPrivate"${r && r.private ? ' checked' : ''}> Hemligt recept, visas inte för andra under Allas recept</label>
         <h2>Ingredienser</h2>
         <p class="hint">Mängd i gram eller ml så att listan kan räkna. Lämna mängden tom för "efter smak". Antal är ungefärligt styckantal (valfritt). Tumregler: 1 msk = 15 ml, 1 tsk = 5 ml, 1 dl = 100 ml.</p>
         <div id="edRows">${ings.map(rowHtml).join('')}</div>
@@ -794,26 +818,44 @@ if (typeof document !== 'undefined') (async function () {
       catch (e) { b.textContent = 'Kunde inte kopiera'; }
       setTimeout(() => { b.textContent = 'Kopiera recept'; }, 2500);
     });
+    // Fire-and-forget mot sparräknaren: kopian i egna state är det viktiga, ett tappat
+    // räknar-anrop är ofarligt. Räknaren i vyn uppdateras optimistiskt.
+    const unsave = r => {
+      if (!r || !r.src || !loggedIn()) return;
+      api('/save', { method: 'DELETE', body: JSON.stringify({ ownerId: r.src.owner, recipeId: r.src.id }) }).catch(() => {});
+      const row = (allasList || []).find(x => x.id === r.src.id && x.ownerId === r.src.owner);
+      if (row && row.saves > 0) row.saves--;
+    };
     view.querySelectorAll('[data-add-allas]').forEach(b => b.onclick = () => {
       const id = b.dataset.addAllas;
-      const r = starter.find(x => x.id === id) || (allasList || []).find(x => x.id === id);
+      // feed-raden först: den bär ownerId som starter.json saknar
+      const r = (allasList || []).find(x => (Number.isInteger(x.ownerId) ? x.ownerId + '|' + x.id : 'starter|' + x.id) === id) || starter.find(x => 'starter|' + x.id === id || x.id === id);
       if (!r) return;
       const copy = JSON.parse(JSON.stringify(r));
-      delete copy.owner;
+      delete copy.owner; delete copy.ownerId; delete copy.saves; delete copy._ownerLabel;
       if (state.recipes.some(x => x.id === copy.id)) copy.id = slugify(copy.title, state.recipes.map(x => x.id));
+      if (loggedIn() && Number.isInteger(r.ownerId)) {
+        copy.src = { owner: r.ownerId, id: r.id };
+        api('/save', { method: 'POST', body: JSON.stringify({ ownerId: r.ownerId, recipeId: r.id }) }).catch(() => {});
+        r.saves = (r.saves || 0) + 1;
+      }
       state.recipes.push(copy);
       save();
     });
     view.querySelectorAll('[data-remove-allas]').forEach(b => b.onclick = () => {
-      const id = b.dataset.removeAllas;
-      state.recipes = state.recipes.filter(x => x.id !== id);
-      state.selections = state.selections.filter(s => s.id !== id);
-      delete state.struck[id];
+      const key = b.dataset.removeAllas;
+      const r = state.recipes.find(x => x.src ? x.src.owner + '|' + x.src.id === key : 'starter|' + x.id === key || x.id === key);
+      if (!r) return;
+      unsave(r);
+      state.recipes = state.recipes.filter(x => x !== r);
+      state.selections = state.selections.filter(s => s.id !== r.id);
+      delete state.struck[r.id];
       save();
     });
     view.querySelectorAll('[data-delete]').forEach(b => b.onclick = () => {
       const r = state.recipes.find(x => x.id === b.dataset.delete);
       if (!confirm('Ta bort "' + r.title + '"? Tas endast bort från dina recept, går inte att ångra.')) return;
+      unsave(r);
       state.recipes = state.recipes.filter(x => x.id !== r.id);
       state.selections = state.selections.filter(s => s.id !== r.id);
       delete state.struck[r.id];
@@ -879,6 +921,9 @@ if (typeof document !== 'undefined') (async function () {
           ingredients,
           steps: $('#edSteps').value.split('\n').map(s => s.trim()).filter(Boolean),
         };
+        if ($('#edPrivate').checked) recipe.private = true;
+        const old = oldId && state.recipes.find(r => r.id === oldId);
+        if (old && old.src) recipe.src = old.src; // redigerad kopia räknas fortfarande som sparad
         if (oldId) state.recipes = state.recipes.map(r => r.id === oldId ? recipe : r);
         else state.recipes.push(recipe);
         location.hash = '#/recept/' + recipe.id;

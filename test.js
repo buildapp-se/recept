@@ -1,7 +1,7 @@
 // ponytail: minsta möjliga check av summering/skalning - körs med: node test.js
 const assert = require('assert');
 const fs = require('fs');
-const { aggregate, fmtNum, fmtItem, fmtIngredient, recipeAsText, spiceHint, parseImport, normalizeState, makeBackup, safeUrl, nutritionPerPortion, COURSES, dedupeAllas } = require('./app.js');
+const { aggregate, fmtNum, fmtItem, fmtIngredient, recipeAsText, spiceHint, parseImport, normalizeState, makeBackup, safeUrl, nutritionPerPortion, COURSES, normalizeCourse, dedupeAllas } = require('./app.js');
 
 const recipes = JSON.parse(fs.readFileSync(__dirname + '/starter.json', 'utf8'));
 
@@ -108,7 +108,7 @@ assert.strictEqual(spiceHint(5, 'ml', 'skafferi'), '', 'bara g, redan volym i ml
 assert.strictEqual(fmtIngredient({ amount: 3, unit: 'g', cat: 'skafferi' }, 1), '3 g (~3 krm)');
 assert.strictEqual(fmtIngredient({ amount: 220, unit: 'g', count: 2, countUnit: 'st', cat: 'grönt' }, 1), '220 g (~2 st)', 'count vinner över spiceHint');
 
-// 10. Allas recept: startpaket-id:n filtreras bort, ägarnamn bara vid krock mellan flera ägare
+// 10. Allas recept: startpaket-id:n filtreras bort, ägarnamn visas på andras recept
 const allasList = [
   { id: 'starter-1', title: 'Redan i startpaketet', owner: 'julia' },
   { id: 'unik', title: 'Bara julias', owner: 'julia' },
@@ -117,9 +117,24 @@ const allasList = [
 ];
 const others = dedupeAllas(allasList, ['starter-1']);
 assert.strictEqual(others.length, 3, 'startpaket-id filtreras bort');
-assert.strictEqual(others.find(r => r.id === 'unik')._ownerLabel, null, 'ingen ägaretikett utan krock');
+assert.strictEqual(others.find(r => r.id === 'unik')._ownerLabel, 'julia', 'ägaretikett visas alltid för andras recept');
+assert.strictEqual(others.find(r => r.id === 'unik')._idCollision, false, 'unik slug flaggas inte som krock');
 assert.strictEqual(others.find(r => r.owner === 'julia' && r.id === 'kollision')._ownerLabel, 'julia', 'ägaretikett vid krock');
 assert.strictEqual(others.find(r => r.owner === 'hans')._ownerLabel, 'hans', 'ägaretikett vid krock');
+assert.strictEqual(others.find(r => r.owner === 'hans')._idCollision, true, 'slug-krock flaggas');
+assert.strictEqual(normalizeCourse('Huvudrätt'), 'huvudratt', 'visningsetikett som course normaliseras till huvudratt');
+assert.strictEqual(normalizeCourse('huvudratt'), 'huvudratt', 'giltig course behålls');
+
+// 10b. private + src överlever normalisering (sync/backup), skräp-src slängs
+const privState = normalizeState({ recipes: [
+  { id: 'hemlis', title: 'Hemlis', private: true, ingredients: [{ name: 'pasta', amount: 200, unit: 'g', cat: 'skafferi' }] },
+  { id: 'sparad', title: 'Sparad', src: { owner: 3, id: 'original' }, ingredients: [{ name: 'pasta', amount: 200, unit: 'g', cat: 'skafferi' }] },
+  { id: 'trasig-src', title: 'Trasig', src: { owner: 'inte-ett-tal' }, ingredients: [{ name: 'pasta', amount: 200, unit: 'g', cat: 'skafferi' }] },
+] });
+assert.strictEqual(privState.recipes[0].private, true, 'private överlever normalisering');
+assert.strictEqual(privState.recipes[1].private, undefined, 'private smittar inte');
+assert.deepStrictEqual(privState.recipes[1].src, { owner: 3, id: 'original' }, 'src överlever normalisering');
+assert.strictEqual(privState.recipes[2].src, undefined, 'trasig src slängs');
 
 // 11. Kopiera recept: ren text för sms/texteditor, inte JSON
 const copyRecipe = {

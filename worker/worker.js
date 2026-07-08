@@ -6,9 +6,14 @@
 // PUT  /name   (Bearer) {name} -> {ok,name}  byter kontonamn (unikt, 409 vid krock)
 // GET  /state  (Bearer) -> {state,name}
 // PUT  /state  (Bearer) <- hela state-blobben {recipes,selections,extras,checked,struck}
-// GET  /allas-recept (Bearer) -> [{...recipe, owner}, ...] från alla konton
+// GET  /allas-recept (Bearer) -> [{...recipe, owner}, ...] från alla konton (utfasas, ersatt av /feed)
+// GET  /feed   (Bearer) -> [{...recipe, owner, ownerId, saves}, ...] ur recipes_index
+// POST /save   (Bearer) {ownerId,recipeId} -> {ok,saves}   registrerar sparning
+// DELETE /save (Bearer) {ownerId,recipeId} -> {ok,saves}   tar bort sparning
 // DELETE /account (Bearer Firebase-JWT) -> {ok}  raderar D1-raden (Firebase-usern raderas client-side)
 const FIREBASE_PROJECT = 'grammat-78450';
+const COURSES = ['forratt', 'huvudratt', 'efterratt', 'dryck', 'sas'];
+const normalizeCourse = course => COURSES.includes(course) ? course : 'huvudratt';
 const cors = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
@@ -79,6 +84,21 @@ async function createFirebaseUser(env, claims) {
     return env.DB.prepare('SELECT * FROM users WHERE firebase_uid = ?').bind(claims.sub).first();
   }
   return null;
+}
+
+// Skriver om ägarens rader i recipes_index från state-bloben (privata recept hoppas över,
+// de kan aldrig läcka via flöden). saves-tabellen är sanningen för saves_count.
+// ponytail: DELETE+INSERT allt per PUT, diffa först om skrivvolymen börjar kosta.
+function reindexStmts(env, ownerId, recipes) {
+  const stmts = [env.DB.prepare('DELETE FROM recipes_index WHERE owner_id = ?').bind(ownerId)];
+  for (const r of recipes) {
+    if (r.private === true || !r.id || !r.title) continue;
+    stmts.push(env.DB.prepare(
+      `INSERT INTO recipes_index (owner_id, id, title, course, visibility, saves_count, data)
+       VALUES (?,?,?,?,'public',(SELECT COUNT(*) FROM saves WHERE owner_id = ? AND recipe_id = ?),?)`
+    ).bind(ownerId, String(r.id), String(r.title), normalizeCourse(r.course), ownerId, String(r.id), JSON.stringify({ ...r, course: normalizeCourse(r.course) })));
+  }
+  return stmts;
 }
 
 async function userFromRequest(req, env) {
@@ -184,16 +204,60 @@ export default {
           let s;
           try { s = JSON.parse(body); } catch (e) { return json({ error: 'Ogiltig data.' }, 400); }
           if (!s || typeof s !== 'object' || !Array.isArray(s.recipes)) return json({ error: 'Ogiltig data.' }, 400);
-          await env.DB.prepare('UPDATE users SET state = ? WHERE id = ?').bind(JSON.stringify(s), u.id).run();
+          await env.DB.batch([
+            env.DB.prepare('UPDATE users SET state = ? WHERE id = ?').bind(JSON.stringify(s), u.id),
+            ...reindexStmts(env, u.id, s.recipes),
+          ]);
           return json({ ok: true });
         }
       }
 
-      // GDPR: raderar all serverdata. Firebase-användaren raderas client-side (user.delete()).
+      // Publika fliken: läser indexet, aldrig blobbarna. Mest sparade först.
+      // ponytail: LIMIT utan offset-paginering, riktig paginering när sajten närmar sig 200 publika recept.
+      if (path === '/feed' && req.method === 'GET') {
+        const u = await userFromRequest(req, env);
+        if (!u) return json({ error: 'Inte inloggad.' }, 401);
+        const { results } = await env.DB.prepare(
+          `SELECT i.owner_id, i.saves_count, i.data, u.name AS owner FROM recipes_index i
+           JOIN users u ON u.id = i.owner_id WHERE i.visibility = 'public'
+           ORDER BY i.saves_count DESC, i.title LIMIT 200`).all();
+        return json(results.map(r => ({ ...JSON.parse(r.data), owner: r.owner, ownerId: r.owner_id, saves: r.saves_count })));
+      }
+
+      // Sparräknaren: registreras när "Lägg till i mina recept" trycks, PK gör dubbelsparning ofarlig.
+      if (path === '/save' && (req.method === 'POST' || req.method === 'DELETE')) {
+        const u = await userFromRequest(req, env);
+        if (!u) return json({ error: 'Inte inloggad.' }, 401);
+        const b = await req.json().catch(() => ({}));
+        const ownerId = Number(b.ownerId), recipeId = String(b.recipeId || '');
+        if (!Number.isInteger(ownerId) || !recipeId) return json({ error: 'Ogiltig data.' }, 400);
+        const write = req.method === 'POST'
+          ? env.DB.prepare('INSERT OR IGNORE INTO saves (user_id, owner_id, recipe_id) VALUES (?,?,?)').bind(u.id, ownerId, recipeId)
+          : env.DB.prepare('DELETE FROM saves WHERE user_id = ? AND owner_id = ? AND recipe_id = ?').bind(u.id, ownerId, recipeId);
+        // räknaren sätts från saves (sanningen), aldrig +1/-1: idempotent, kan inte driva
+        const [, , row] = await env.DB.batch([
+          write,
+          env.DB.prepare(`UPDATE recipes_index SET saves_count =
+            (SELECT COUNT(*) FROM saves WHERE owner_id = ? AND recipe_id = ?)
+            WHERE owner_id = ? AND id = ?`).bind(ownerId, recipeId, ownerId, recipeId),
+          env.DB.prepare('SELECT saves_count FROM recipes_index WHERE owner_id = ? AND id = ?').bind(ownerId, recipeId),
+        ]);
+        return json({ ok: true, saves: row.results[0] ? row.results[0].saves_count : 0 });
+      }
+
+      // GDPR: raderar all serverdata (user-rad, indexrader, sparningar åt båda håll).
+      // Firebase-användaren raderas client-side (user.delete()).
       if (path === '/account' && req.method === 'DELETE') {
         const u = await userFromRequest(req, env);
         if (!u) return json({ error: 'Inte inloggad.' }, 401);
-        await env.DB.prepare('DELETE FROM users WHERE id = ?').bind(u.id).run();
+        await env.DB.batch([
+          env.DB.prepare('DELETE FROM users WHERE id = ?').bind(u.id),
+          env.DB.prepare('DELETE FROM recipes_index WHERE owner_id = ?').bind(u.id),
+          env.DB.prepare('DELETE FROM saves WHERE user_id = ? OR owner_id = ?').bind(u.id, u.id),
+          // användarens sparningar försvann: räkna om räknarna (sällsynt op, helt index ok)
+          env.DB.prepare(`UPDATE recipes_index SET saves_count =
+            (SELECT COUNT(*) FROM saves s WHERE s.owner_id = recipes_index.owner_id AND s.recipe_id = recipes_index.id)`),
+        ]);
         return json({ ok: true });
       }
     } catch (e) {
