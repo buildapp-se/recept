@@ -401,19 +401,21 @@ if (typeof document !== 'undefined') (async function () {
     const sel = mine ? selFor(id) : null;
     const portions = sel ? sel.portions : (previewPortions[id] || r.portions);
     const f = portions / r.portions;
-    // Bockade rader (har hemma/redan i grytan) samlas längst ner och utesluts ur inköpslistan.
+    // Bockade rader (har hemma/redan i grytan) samlas längst ner, senast bockad överst,
+    // och utesluts ur inköpslistan.
     const struckKeys = state.struck[id] || [];
-    let rows = '', struckRows = '', lastGroup = null;
+    let rows = '', lastGroup = null;
+    const struckRows = [];
     r.ingredients.forEach((ing, i) => {
       const k = keyOf(ing.name);
       const isStruck = mine && struckKeys.includes(k);
       const attr = mine ? ` data-ing="${esc(k)}" style="view-transition-name:ing-${i}"` : '';
       const row = `<tr class="ing-row${isStruck ? ' struck' : ''}"${attr}><td>${esc(ing.name)}</td><td class="num">${fmtIngredient(ing, f)}${isStruck ? '<span class="tick">✓</span>' : ''}</td></tr>`;
-      if (isStruck) { struckRows += row; return; }
+      if (isStruck) { struckRows.push({ row, order: struckKeys.indexOf(k) }); return; }
       if ((ing.group || null) !== lastGroup) { lastGroup = ing.group || null; if (lastGroup) rows += `<tr class="ing-group"><td colspan="2">${esc(lastGroup)}</td></tr>`; }
       rows += row;
     });
-    rows += struckRows;
+    rows += struckRows.sort((a, b) => b.order - a.order).map(x => x.row).join('');
     const steps = r.steps.length
       ? '<ol class="steps">' + r.steps.map(s => `<li>${esc(s)}</li>`).join('') + '</ol>'
       : '<p class="empty">Inga steg nedskrivna.</p>';
