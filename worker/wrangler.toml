@@ -1,7 +1,7 @@
 name = "recept-api"
 main = "worker.js"
 compatibility_date = "2026-07-06"
-routes = [{ pattern = "recept-api.orgutveckling.se", custom_domain = true }]
+routes = [{ pattern = "recept-api.buildapp.se", custom_domain = true }]
 
 [[d1_databases]]
 binding = "DB"

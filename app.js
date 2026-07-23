@@ -293,7 +293,7 @@ if (typeof module !== 'undefined') { module.exports = { CATS, COURSES, COURSE_LA
 
 // ---------- app ----------
 if (typeof document !== 'undefined') (async function () {
-  const API = 'https://recept-api.orgutveckling.se';
+  const API = 'https://recept-api.buildapp.se';
   const $ = sel => document.querySelector(sel);
   const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 

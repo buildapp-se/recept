@@ -1,4 +1,4 @@
-// API för "Grammat" (orgutveckling.se/recept)
+// API för "Grammat" (buildapp.se/grammat)
 // Auth: Firebase ID-token (JWT, verifieras mot Googles JWKS) ELLER legacy uuid-token (utfasas).
 // POST /register {name,pin} -> {token,name}   (legacy, utfasas)
 // POST /login    {name,pin} -> {token,name}   (legacy, utfasas)
